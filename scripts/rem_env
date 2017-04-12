@@ -1,0 +1,4 @@
+export LD_LIBRARY_PATH=/home/ubuntu/src/torch/install/lib:/home/ubuntu/src/torch/install/lib:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/home/ubuntu/src/mxnet/mklml_lnx_2017.0.1.20161005/lib
+export PATH=/home/ubuntu/src/torch/install/bin:/home/ubuntu/src/torch/install/bin:/usr/local/cuda/bin:/usr/local/bin:/opt/aws/bin:/home/ubuntu/src/cntk/bin:/usr/local/mpi/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/jvm/java-8-oracle/bin:/usr/lib/jvm/java-8-oracle/db/bin:/usr/lib/jvm/java-8-oracle/jre/bin
+export DYLD_LIBRARY_PATH=/home/ubuntu/src/torch/install/lib:/home/ubuntu/src/torch/install/lib:
+

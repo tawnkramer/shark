@@ -721,6 +721,9 @@ class WebSite(object):
         command = "scp ../*.py %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
         commands.append(command)
 
+        command = "scp ../config.json %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
+        commands.append(command)
+
         command = "scp -r shadows %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
         commands.append(command)
 
@@ -745,6 +748,9 @@ class WebSite(object):
 
         #copy all the training python source
         command = "scp ../*.py %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
+        commands.append(command)
+
+        command = "scp ../config.json %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
         commands.append(command)
 
         res.append('<pre>')
