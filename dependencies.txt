@@ -1,0 +1,45 @@
+#included
+
+https://github.com/nlohmann/json.git
+https://github.com/drewnoakes/joystick
+https://github.com/zserge/jsmn
+https://github.com/serge-rgb/TinyJPEG
+https://github.com/fpapleux/mcqueen.git
+
+
+#must build and install from source or packages
+
+https://github.com/zeromq/libzmq
+https://github.com/zeromq/czmq.git
+https://github.com/WiringPi/WiringPi.git
+
+#if using raspicam camera
+https://github.com/cedricve/raspicam
+#when building raspicam, I had to make this hack to get better framerate.
+# raspicam/src/private/private_impl.cpp
+# change: State.framerate            = 10;
+# to:     State.framerate            = 60;
+
+
+#if planning on using a usb v4l camera
+sudo apt-get install libv4l-dev
+#or
+http://git.linuxtv.org/v4l-utils.git
+
+
+#Python dependencies
+
+python 2.7+
+numpy
+keras
+tensorflow
+pillow ( on pc side only for train.py )
+pip install awscli (if panning to use aws ec2 to train)
+matplotlib (on pc if you want graphs of train output - no need on the pi)
+cherrypy (if you plan on running the webserver on your pi)
+
+#if planning on using aws ec2 instances to train
+#I recommend using region us-east-1 as it has the cheapest
+#p2.large spot instances.
+aws configure
+

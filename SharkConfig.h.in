@@ -1,0 +1,7 @@
+// the configured options and settings for shark
+#define shark_VERSION_MAJOR @shark_VERSION_MAJOR@
+#define shark_VERSION_MINOR @shark_VERSION_MINOR@
+
+#define ENABLE_PG_SDK @ENABLE_PG_SDK@
+#define ENABLE_RASPICAM @ENABLE_RASPICAM@
+#define ENABLE_CAR @ENABLE_CAR@

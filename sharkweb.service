@@ -1,0 +1,27 @@
+[Unit]
+Description=python script to run shark web app
+
+[Service]
+WorkingDirectory=/home/tkramer/projects/shark/web
+ExecStart=/usr/bin/python webapp.py
+Restart=always
+User=tkramer
+
+[Install]
+WantedBy=multi-user.target
+
+#setup link
+#sudo ln -s /home/tkramer/projects/shark/sharkweb.service /etc/systemd/system/sharkweb.service
+#or copy
+#sudo cp /home/tkramer/projects/shark/sharkweb.service /etc/systemd/system/sharkweb.service
+
+#start
+#sudo systemctl daemon-reload
+#sudo systemctl enable /home/tkramer/projects/shark/sharkweb.service
+#sudo systemctl start sharkweb
+
+#remove
+#sudo systemctl stop sharkweb
+#sudo systemctl disable sharkweb
+#sudo systemctl daemon-reload
+#sudo systemctl reset-failed

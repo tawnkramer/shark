@@ -1,0 +1,5 @@
+maxbotix LV-EZ2 MaxSonar range sensor
+PW pin outputs a pulse of 147 microseconds per inch
+at a definition of 12 bits (4096 = 20 milliseconds)
+
+1 inch = (20,000 microseconds / 4096

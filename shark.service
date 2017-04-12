@@ -1,0 +1,27 @@
+[Unit]
+Description=python script to run shark robot services
+
+[Service]
+WorkingDirectory=/home/tkramer/projects/shark
+ExecStart=/usr/bin/python shark.py
+Restart=always
+User=tkramer
+
+[Install]
+WantedBy=multi-user.target
+
+#setup link
+#sudo ln -s /home/tkramer/projects/shark/shark.service /etc/systemd/system/shark.service
+#or copy
+#sudo cp /home/tkramer/projects/shark/shark.service /etc/systemd/system/shark.service
+
+#start
+#sudo systemctl daemon-reload
+#sudo systemctl enable /home/tkramer/projects/shark/shark.service
+#sudo systemctl start shark
+
+#remove
+#sudo systemctl stop shark
+#sudo systemctl disable shark
+#sudo systemctl daemon-reload
+#sudo systemctl reset-failed

@@ -1,0 +1,29 @@
+mcqueen
+=======
+
+This is an autonomous RC Car project using a Raspberry Pi, an Adafruit 16-channel PWM ESC/Servo driver.
+It is based the wiringPi libraries.
+
+The code in the 'car' directory is the main code being developed.  I am working on developing the C++ code required to make
+the project in the leanest possible way, but with a structure that can be reused.  Based on my limited knowledge of the 
+platform, I have started by heavily relying on libraries I could find and, as my knowledge grows, I am paring down the 
+use of other code to avoid compiling stuff I will never use.
+
+
+Thanks to the following people for contributions, inspiration, code and other help:
+
+Hussam Al-Hertani, of hertaville.com
+I used your tutorial on interfacing the Raspberry pi GPIO to build my gpio and pin classes. Thanks for sharing.
+
+Gordon Henderson, of projects.drogon.net
+I don't think the world of the Raspberry Pi would exist today without you. I have leveraged wiringPi significantly
+throughout this project.  A lot of code is still referencing it, although I am slowly disconnecting from it. Your website
+is a goldmine for beginners like me, and not so beginners too.
+
+Robert Savage, Chris Walzi & the pi4j crew/contributors at pi4j.com
+I actually started this in Java and still think that there is some good stuff to do there.  It was convenient for me
+to learn the platform in a familiar language and help me frame my thoughts in objects.  Most other libraries out there
+aren't.
+
+
+

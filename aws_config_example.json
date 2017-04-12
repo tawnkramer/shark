@@ -1,0 +1,21 @@
+{
+    "ImageId": "ami-3568a023",
+    "InstanceType": "p2.xlarge",
+    "SubnetId": "subnet-2250da79",
+    "Placement": {
+      "AvailabilityZone": "us-east-1b"    
+    },
+    "KeyName": "tkramer_pi",
+    "BlockDeviceMappings": [
+      {
+        "DeviceName": "/dev/sda1",
+        "Ebs": {
+          "DeleteOnTermination": true,
+          "VolumeType": "gp2",
+          "VolumeSize": 50
+        }
+      }
+    ],
+    "SecurityGroupIds": [ "sg-82dcc7fe" ]
+}
+
