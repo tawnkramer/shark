@@ -19,7 +19,7 @@ All these items in a single [Amazon shopping list](http://a.co/4UVuBVe)
 
 ### Setup PI ###
 * install headless raspian for best performance: <https://downloads.raspberrypi.org/raspbian_lite_latest/>
-[Install instructions](https://www.raspberrypi.org/documentation/installation/installing-images/README.md)
+* [Install instructions](https://www.raspberrypi.org/documentation/installation/installing-images/README.md)
 
 ### Setup Adafruit Servo Hat ###
 * setup ic2 : <https://learn.adafruit.com/adafruit-16-channel-pwm-servo-hat-for-raspberry-pi/>

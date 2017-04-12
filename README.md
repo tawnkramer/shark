@@ -75,6 +75,6 @@ Check shark.service and sharkweb.service to run on startup.
 * When you are done with server, select 'release ec2' to shutdown remote machine.
 
 ### Self Driving: ###
-* hit triangle toggle start self steering.
-* use dpad up and down to increase throttle scale
+* hit triangle toggle start self driving.
+* use dpad up and down to modify throttle scale
 
