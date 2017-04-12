@@ -173,16 +173,16 @@
 "aws_config" : "../aws_config.json",
 
 //this pem need to be an absolute path
-"pem_filename" : "/home/tkramer/tkramer_pi.pem",
+"pem_filename" : "/home/pi/yourkeyname.pem",
 
 //////////////////////////////////////////
 // alt train server settings
 
-"alt_train_host" : "sd-tkramer-01",
-"alt_train_user" : "tkramer",
+"alt_train_host" : "your_host_name",
+"alt_train_user" : "your_username",
 
 //default local user is pi on the raspberry pi
-"local_user" : "tkramer",
+"local_user" : "pi",
 
 
 //////////////////////////////////////////

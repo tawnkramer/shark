@@ -11,7 +11,7 @@ A framework for controlling, recording, training, and running a self driving rob
 * Manage things with a mobile device via web page and joystick controller
 
 ### Build your bot ###
-* check docs/bot_setup.md
+* check [docs/bot_setup.md](https://github.com/tawnkramer/shark/blob/master/docs/bot_setup.md)
 
 ### How do I get set up? ###
 
@@ -58,7 +58,7 @@ Check shark.service and sharkweb.service to run on startup.
 * on the pi: python shark.py --model mymodel
 
 ### Web EC2 Based Training: ###
-* check docs/aws_setup.md
+* check [docs/aws_setup.md](https://github.com/tawnkramer/shark/blob/master/docs/aws_setup.md)
 * Navigate to [web page](http://pi.local:8080)
 * Select 'ec2' button
 * Select 'start ec2'
