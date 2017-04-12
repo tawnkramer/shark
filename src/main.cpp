@@ -30,6 +30,8 @@ using namespace raspicam;
 //this can be disabled to run on linux platforms w no i2c for testing camera, prediction code.
 #if ENABLE_CAR
 #include "mcqueen/car/Car.h"
+#else
+#warning "car disabled"
 #endif
 
 //if we need a usb camera support
@@ -310,7 +312,7 @@ bool doIgnoreAxis(int* ignoreIds, int ignoreCount, int axisId)
 ///////////////////////////////////////////////////////////////////////////////
 //LED status light
 
-#if HAVE_WIRINGPI
+#if ENABLE_CAR
 Gpio* pGpio = NULL;
 #endif
 
@@ -333,7 +335,7 @@ void blink_led_status(float rate)
 
 void led_status(bool onOff)
 {
-#if HAVE_WIRINGPI
+#if ENABLE_CAR
 
     if(pGpio == NULL)
         pGpio = new Gpio(2);
@@ -360,6 +362,8 @@ void* ProcessJoyStick(void* args)
 
     Joystick joystick;
 
+    bool verbose = conf->GetInt("debug_test_js", 0) == 1;
+
     const char* js_path = conf->GetStr("js_path", "/dev/input/js0");
 
     //Wait for joystick to connect. It may be connected via Bluetooth and take a moment
@@ -370,6 +374,9 @@ void* ProcessJoyStick(void* args)
         usleep(1000);
         joystick.openPath(js_path);
     }
+
+    if(verbose)
+        printf("joystick is found on: %s\n", js_path);
 
     //The PS3 sixaxis controller spews constant orientation data
     //on these three axis channels. Suppressing this saves time downstream.
@@ -414,12 +421,18 @@ void* ProcessJoyStick(void* args)
             {
                 if(event.number == axisSteer)
                 {
+                    if(verbose)
+                        printf("steering input: %d\n", event.value);
+
                     record.steer = event.value;
                     record.tick = clock();
                     g_AxisInput.Write(record);
                 }
                 else if(event.number == axisThrottle)
                 {
+                    if(verbose)
+                        printf("throttle input: %d\n", event.value);
+
                     //we reverse the throttle so Up is forward.
                     record.throttle = event.value * -1;
                     record.tick = clock();
@@ -1027,7 +1040,7 @@ void* ProcessLogger(void * args)
 
 void* ProcessRobot(void * args)
 {
-#if HAVE_WIRINGPI
+#if ENABLE_CAR
 
     Config* conf = (Config*)args;
 
@@ -1125,7 +1138,7 @@ void* ProcessRobot(void * args)
         }
     }
 
-    #endif //#if HAVE_WIRINGPI
+    #endif //#if ENABLE_CAR
 
     return NULL;
 }

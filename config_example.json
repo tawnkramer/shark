@@ -226,7 +226,10 @@
 "debug_test_recording": 0,
 
 //when 1, run the predict loop when shark starts.
-"debug_test_predict": 0
+"debug_test_predict": 0,
+
+//when 1, spew verbose output in js events
+"debug_test_js": 0
 
 }
 

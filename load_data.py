@@ -15,7 +15,7 @@ import conf
 #some images are getting cut off
 min_image_size = 1 * 1024
 
-def augment_image(img, shadow_images=shadow_images):
+def augment_image(img, shadow_images=None):
     #change the coloration, sharpness, and composite a shadow
     factor = random.uniform(0.5, 2.0)
     img = ImageEnhance.Brightness(img).enhance(factor)

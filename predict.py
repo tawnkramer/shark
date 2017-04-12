@@ -84,9 +84,6 @@ def go(model_path, pred_address, pred_control_address):
                 
                 if h == ich and ch == ih:
                     img = img.transpose()
-                
-                if conf.GREY_SCALE:
-                    img = img[:,:,:1]
                     
                 try:
                     outputs = model.predict(img[None, :, :, :])
