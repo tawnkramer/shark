@@ -78,6 +78,3 @@ Check shark.service and sharkweb.service to run on startup.
 * hit triangle toggle start self steering.
 * use dpad up and down to increase throttle scale
 
-## Who do I talk to? ##
-
-* Repo owner - tawnkramer@gmail.com

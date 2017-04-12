@@ -38,8 +38,3 @@ pip install awscli (if panning to use aws ec2 to train)
 matplotlib (on pc if you want graphs of train output - no need on the pi)
 cherrypy (if you plan on running the webserver on your pi)
 
-#if planning on using aws ec2 instances to train
-#I recommend using region us-east-1 as it has the cheapest
-#p2.large spot instances.
-aws configure
-
