@@ -9,7 +9,7 @@ include(CheckLibraryExists)
 
 
 # -fopenmp -fpermissive
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_ONLY -std=c++11 -fopenmp -mfpu=neon-vfpv4 -funsafe-math-optimizations -ftree-vectorize -fomit-frame-pointer")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_ONLY -std=c++11 -fopenmp -funsafe-math-optimizations -ftree-vectorize -fomit-frame-pointer")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fopenmp")
 
 #enable for debug builds.
