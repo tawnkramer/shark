@@ -238,9 +238,9 @@ if __name__ == "__main__":
     if args.test_image is not None:
         pred_image(args.model, args.test_image)
     elif(args.test_speed):
-        model = models.get_nvidia_model_sw()
+        #model = models.get_nvidia_model_sw()
         #model = models.get_nvidia_model()
-        #model = None
+        model = None
         print('running profile on prediction loop')
         profile_speed(args.model, model)
     else:

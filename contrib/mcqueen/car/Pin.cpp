@@ -4,10 +4,11 @@
  * author: fabien papleux
  *
  */
-
+#include "SharkConfig.h"
 #include <iostream>
 #include <string>
 #include <cstring>
+#if ENABLE_WIRING_PI 
 #include <wiringPi.h>
 #include "Pin.h"
 
@@ -90,4 +91,6 @@ int Pin::getValue (void)
 	return value;
 }
 
+
+#endif // ENABLE_WIRING_PI 
 

@@ -4,9 +4,13 @@
  *  Created on: Apr 1, 2014
  *      Author: fabien papleux
  */
-
+#include "SharkConfig.h"
 #include <iostream>
-#include <wiringPi.h>
+#if ENABLE_WIRING_PI 
+	#include <wiringPi.h>
+#else
+	#include "wiringPiLite.h"
+#endif
 #include "Pin.h"
 #include "Gpio.h"
 

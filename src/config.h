@@ -4,7 +4,7 @@
 #include "json.h"
 #include <string>
 
-#define MAX_SETTINGS 128
+#define MAX_SETTINGS 256
 
 class Config
 {

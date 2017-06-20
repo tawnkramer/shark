@@ -7,6 +7,8 @@ set (shark_VERSION_MINOR 1)
 include(CheckIncludeFile)
 include(CheckLibraryExists)
 
+#only on pi
+#-mfpu=neon-vfpv4
 
 # -fopenmp -fpermissive
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_ONLY -std=c++11 -fopenmp -funsafe-math-optimizations -ftree-vectorize -fomit-frame-pointer")
@@ -16,6 +18,8 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fopenmp")
 #set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_BUILD_TYPE Release)
 
+find_library(LIB_ZMQ zmq)
+find_library(LIB_CZMQ czmq)
 
 # look for PointGrey/FLIR FlyCapture camera support libs
 # on ubuntu it puts the flycap in /usr/include
@@ -33,24 +37,33 @@ check_library_exists(raspicam _ZNK8raspicam8_private12Private_Impl5getIdEv ${LIB
 find_library(LIB_WIRINGPI wiringPi)
 check_library_exists(wiringPi piBoardRev ${LIB_WIRINGPI} HAVE_WIRINGPI)
 
+#check wiringPi
+find_library(LIB_RPLIDAR rplidar_sdk)
+
 # add the binary tree to the search path for include files
 # so that we will find SharkConfig.h
 include_directories("${PROJECT_BINARY_DIR}" "src" "contrib" ${PG_SDK_ROOT})
 
 #our executable
-add_executable(shark src/main.cpp src/json.cpp src/config.cpp src/pointgrey.cpp contrib/joystick/joystick.cc contrib/jsmn/jsmn.c contrib/v4l_helper/capture_raw_frames.c)
+add_executable(shark src/main.cpp src/json.cpp src/config.cpp src/pointgrey.cpp src/lidar.cpp contrib/joystick/joystick.cc contrib/jsmn/jsmn.c contrib/v4l_helper/capture_raw_frames.c)
 
 #link libraries
 TARGET_LINK_LIBRARIES(shark zmq czmq pthread)
 
+#build and link mcqueen car lib
+add_subdirectory(contrib/mcqueen/car)
+TARGET_LINK_LIBRARIES(shark car)
+
 #conditional libraries
 
 if(HAVE_WIRINGPI)
-  add_subdirectory(contrib/mcqueen/car)
-  TARGET_LINK_LIBRARIES(shark car ${LIB_WIRINGPI})
-  set (ENABLE_CAR 1)
+  TARGET_LINK_LIBRARIES(shark ${LIB_WIRINGPI})
+  set (ENABLE_WIRING_PI 1)
 else()
-  set (ENABLE_CAR 0)
+  set (ENABLE_WIRING_PI 0)
+  #in the absense of wiring pi, this lite lib will suffice
+  add_subdirectory(contrib/wiring_pi_lite)
+  TARGET_LINK_LIBRARIES(shark wplite)
 endif()
 
 if(HAVE_RASPICAM)
@@ -65,6 +78,13 @@ if(HAVE_PG_SDK_HEADER AND HAVE_PG_SDK)
   set (ENABLE_PG_SDK 1)
 else()
   set (ENABLE_PG_SDK 0)
+endif()
+
+if(LIB_RPLIDAR)
+  TARGET_LINK_LIBRARIES(shark ${LIB_RPLIDAR})
+  set (ENABLE_RPLIDAR 1)
+else()
+  set (ENABLE_RPLIDAR 0)
 endif()
 
 # configure a header file to pass some of the CMake settings

@@ -51,7 +51,7 @@ def go(model, img_pub_address, pred_address, pred_control_address):
         print 'stopping'
         for proc in shark_process:
             proc.close()
-        ps.terminate()    
+        ps.terminate()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='shark server')

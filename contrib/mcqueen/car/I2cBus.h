@@ -9,14 +9,15 @@
 #define I2CBUS_H_
 
 #define I2C_SLAVE	0x0703
+#include <string.h>
 
 class I2cBus
 {
 public:
-	I2cBus (void);
+	I2cBus (const char* device_filename = NULL);
 	~I2cBus (void);
 
-	int init (void);
+	int init (const char* device_filename = NULL);
 	int isReady (void);
 	void printStatus (void);
 	void setSlave (int address);
@@ -28,7 +29,7 @@ public:
 private:
 	int ready;
 	int fd;
-	const char *i2cPath;
+	std::string i2cPath;
 	int currentSlave;
 };
 

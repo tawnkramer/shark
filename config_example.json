@@ -101,9 +101,18 @@
 ////////////////////////////////////
 // Car Setup
 
+//echo various information to the console about the pwm board, servos, and esc boot status
+"debug_show_car_detailed_status" : 1,
+
 //These are the 0-15 integer plug in that we use for the Adafruit Servo Hat
 "ada_steering_servo_channel" : 2,
 "ada_esc_motor_channel" : 4,
+
+//the filename used to access the pwm on the i2c bus
+"pwm_device_file" : "/dev/i2c-0",
+
+//what is the address on the i2c bus of the pwm board
+"pwm_ic2_address" : "0x40",
 
 //what is the frequency of pulse width modulation our servo likes
 "pwm_servo_freq": 60,
@@ -173,16 +182,16 @@
 "aws_config" : "../aws_config.json",
 
 //this pem need to be an absolute path
-"pem_filename" : "/home/pi/yourkeyname.pem",
+"pem_filename" : "/home/tkramer/tkramer_pi.pem",
 
 //////////////////////////////////////////
 // alt train server settings
 
-"alt_train_host" : "your_host_name",
-"alt_train_user" : "your_username",
+"alt_train_host" : "sd-tkramer-01",
+"alt_train_user" : "tkramer",
 
 //default local user is pi on the raspberry pi
-"local_user" : "pi",
+"local_user" : "tkramer",
 
 
 //////////////////////////////////////////
@@ -218,8 +227,28 @@
 //Of all the images, what fraction are augmented. command line option can override.
 "training_default_aug_percent": 0.5,
 
+
+
+//////////////////////////////////////////
+// lidar settings
+
+//device file to open for lidar input
+"lidar_dev_file" : "/dev/ttyUSB0",
+
+//should we print return values to console
+"lidar_verbose_output" : 0,
+
+
+
 //////////////////////////////////////////
 // debug settings
+
+//selectively disable control loops
+//enable or disable just the car control loop
+"enable_pwm_car_control" : 1,
+
+//show the frames per second for each control loop
+"debug_display_fps" : 1,
 
 //when 1, start the recording when shark starts. run the recording even though no js input.
 //this is good for validating camera and logging systems.
@@ -228,8 +257,36 @@
 //when 1, run the predict loop when shark starts.
 "debug_test_predict": 0,
 
-//when 1, spew verbose output in js events
-"debug_test_js": 0
+//when 1, output all joystick inputs to console.
+"debug_test_js": 0,
+
+/////////////////////////////////////
+// When calibrating the inputs for pwm, use this these flags to help arrive at the proper
+// values for your setup. When initing the ESC, electronic speed control, there is often
+// a special sequence needed. For the Traxxas slash XL-5 ESC, you need to go directly to 
+// highest, then lowest, then middle. So h l m on the keyboard before it will init.
+// Critically, the middle value seems to vary slightly depending on the board and voltages.
+// 400 worked as a middle value for the adafruit hat on a pi3. But with the jetson tx2 and
+// a smaller pwm board, I needed a value of 380 for the middle. To find the middle value,
+// go high, low middle, then wander slowly up then down from 400 while watching the arming
+// light on the esc until it changes to solid red.
+
+//when 1, look for keyboard input from console to do interactive testing of pwm channel.
+//can be helpful when configuring hi low values for servo
+"debug_test_pwm": 0,
+
+//which pin channel to address for debug calibration ( 0-15 if 16 set of pins )
+"debug_pwm_ch": 0,
+
+//high value to use during pwm testing
+"debug_pwm_hi": 600,
+
+//mid value to use during pwm testing.
+"debug_pwm_mid": 400,
+
+//low value to use during pwm testing
+"debug_pwm_lo": 200
+
 
 }
 

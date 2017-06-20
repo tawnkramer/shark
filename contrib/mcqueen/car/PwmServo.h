@@ -63,6 +63,8 @@ public:
 	int setPwm (int value);
 	int getPwm (void);
 
+	const PwmServoConfig& getCfg() { return cfg; }
+
 private:
 	int ready;
 	int currentPos;					// Holds the current position

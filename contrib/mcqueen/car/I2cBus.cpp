@@ -5,40 +5,67 @@
  *      Author: fabien papleux
  */
 
+#include "SharkConfig.h"
 #include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <wiringPi.h>
-#include <wiringPiI2C.h>
+#if ENABLE_WIRING_PI 
+	#include <wiringPi.h>
+	#include <wiringPiI2C.h>
+#else
+	#include "wiringPiLite.h"
+#endif
 
 #include "I2cBus.h"
 
 using namespace std;
 
 /**********************************************************/
-I2cBus::I2cBus()
+I2cBus::I2cBus(const char* device_filename)
 {
 	currentSlave = -1;
 	fd = -1;
 	ready = 0;
-	init();
+	init(device_filename);
 }
 
 /**********************************************************/
 I2cBus::~I2cBus()
 {
-	if (fd) close(fd);
+	if (fd != -1) 
+		close(fd);
 }
 
 /**********************************************************/
-int I2cBus::init(void)
+int I2cBus::init(const char* device_filename)
 {
+	if (fd != -1) 
+		close(fd);
+
+	printf("I2cBus::init: %s\n", device_filename);
+
 	ready = 0;
-	if (piBoardRev() == 1) i2cPath = "/dev/i2c-0";
-	else i2cPath = "/dev/i2c-1";
-	if ((fd = open (i2cPath, O_RDWR)) >= 0)
+
+#if ENABLE_WIRING_PI 
+	if(device_filename != NULL)
+		i2cPath = device_filename;
+	else if (piBoardRev() == 1) 
+		i2cPath = "/dev/i2c-0";
+	else 
+		i2cPath = "/dev/i2c-1";
+#else
+	if(device_filename != NULL)
+		i2cPath = device_filename;
+	else
+		i2cPath = "/dev/i2c-0";
+#endif
+	
+	if ((fd = open (i2cPath.c_str(), O_RDWR)) >= 0)
 		ready = 1;
+
+	printf("I2cBus::ready: %s\n", ready == 1 ? "yes": "no");
+	
 	return ready;
 }
 

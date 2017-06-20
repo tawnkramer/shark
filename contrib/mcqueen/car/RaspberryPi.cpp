@@ -4,7 +4,9 @@
  *  Created on: Mar 26, 2014
  *      Author: fabien papleux
  */
+#include "SharkConfig.h"
 
+#if ENABLE_WIRING_PI 
 #include <iostream>
 #include <string.h>
 #include <fstream>
@@ -196,3 +198,5 @@ void RaspberryPi::printStatus (void)
 	if (gpio) gpio->printStatus();
 	if (i2c) i2c->printStatus();
 }
+
+#endif //ENABLE_WIRING_PI 

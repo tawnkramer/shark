@@ -5,14 +5,25 @@
  *      Author: fabien papleux
  */
 
+#include "SharkConfig.h"
 #include <iostream>
 #include <string>
-#include <wiringPi.h>
+
+#if ENABLE_WIRING_PI 
+	#include <wiringPi.h>
+#else
+	#include "wiringPiLite.h"
+#endif
+
 #include "PwmEsc.h"
 #include "PwmServo.h"
 #include "PCA9685.h"
 #include "I2cBus.h"
-#include "RaspberryPi.h"
+
+#if ENABLE_WIRING_PI
+	#include "RaspberryPi.h"
+#endif
+
 #include "Car.h"
 
 using namespace std;
@@ -29,7 +40,10 @@ using namespace std;
 
 Car::Car(void)
 {
+	#if ENABLE_WIRING_PI
 	pi = NULL;
+	#endif
+
 	i2c = NULL;
 	pwm = NULL;
 	servo = NULL;
@@ -52,7 +66,10 @@ Car::~Car(void)
 	if (servo) delete servo;
 	if (esc) delete esc;
 	if (pwm) delete pwm;
+
+	#if ENABLE_WIRING_PI
 	if (pi) delete pi;
+	#endif
 }
 
 
@@ -68,7 +85,8 @@ Car::~Car(void)
  */
 
 int Car::init(PwmServoConfig* pSteeringConfig, 
-		PwmEscConfig* pEscConfig)
+		PwmEscConfig* pEscConfig,
+		PWMBoardConfig* pBoardConfig)
 {
 	ready = 0;		// Car is not ready yet
 
@@ -104,6 +122,7 @@ int Car::init(PwmServoConfig* pSteeringConfig,
 
 	// Initialize the Raspberry Pi (generically, this is the car's main microcontroller.
 	// It could have been an Arduino or something else.
+#if ENABLE_WIRING_PI
 	if (pi) delete pi;
 	pi = new RaspberryPi();
 
@@ -113,14 +132,27 @@ int Car::init(PwmServoConfig* pSteeringConfig,
 
 	// the I2cBus is automatically initalized by the Raspberry Pi.  We are just reassigning the pointer
 	i2c = 	pi->getI2cBus();
+#else
+
+	//we are not on the Pi, so make our own I2C bus object
+	if(i2c == NULL)
+	 	i2c = new I2cBus(pBoardConfig->device_file.c_str());
+	if (! i2c->isReady()) 
+		i2c->init(pBoardConfig->device_file.c_str());
+
+	cout << "I2C: " << i2c << endl;
+#endif
 
 	// (Re-)creating and (Re-)initializing the PWM controller (PCA9685)
 	// using standard PCA9685 configuration: I2C address 0x40, and using 50Hz as the PWM pulse frequency
 	// Also inserting a small delay to let additional components get in place
 	// Also, the PCA9685 board is powered through the pi's pin 7 so we turn it on here.
+#if ENABLE_WIRING_PI
 	pi->getPin(7)->setValue(HIGH);
+#endif	
+
 	if (pwm) delete pwm;
-	pwm = 	new PCA9685 	(i2c, 0x40, servoConfig.frequency);
+	pwm = 	new PCA9685 	(i2c, pBoardConfig->i2c_address, servoConfig.frequency);
 	delay(25);
 
 
@@ -215,8 +247,9 @@ I2cBus *Car::getI2cBus (void) { return i2c; }
  * ------------------------------------------------------------------------------------------------------------
  */
 
+#if ENABLE_WIRING_PI
 RaspberryPi *Car::getRaspberryPi (void) { return pi; }
-
+#endif
 
 
 
@@ -234,13 +267,19 @@ void Car::printStatus (void)
 	cout << "CAR DETAILED STATUS" << endl;
 	cout << "-------------------" << endl << endl;
 	cout << "Is Ready              : " << (ready ? "Yes" : "No") << endl;
+#if ENABLE_WIRING_PI
 	cout << "Raspberry Pi          : " << (pi    ? string("Present").append((pi->isReady()    ? " and Ready" : " but not ready")) : "Absent") << endl;
-	cout << "Pi I2C Bus            : " << (i2c   ? string("Present").append((i2c->isReady()   ? " and Ready" : " but not ready")) : "Absent") << endl;
+#endif
+	cout << "I2C Bus               : " << (i2c   ? string("Present").append((i2c->isReady()   ? " and Ready" : " but not ready")) : "Absent") << endl;
 	cout << "PCA9685 (PWM)         : " << (pwm   ? string("Present").append((pwm->isReady()   ? " and Ready" : " but not ready")) : "Absent") << endl;
 	cout << "Servo (direction)     : " << (servo ? string("Present").append((servo->isReady() ? " and Ready" : " but not ready")) : "Absent") << endl;
 	cout << "ESC (throttle)        : " << (esc 	 ? string("Present").append((esc->isReady()   ? " and Ready" : " but not ready")) : "Absent") << endl;
 	cout << endl;
+
+#if ENABLE_WIRING_PI
 	pi->printStatus();
+#endif
+
 	pwm->printStatus();
 	servo->printStatus();
 	esc->printStatus();

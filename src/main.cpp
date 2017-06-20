@@ -12,11 +12,13 @@
 #include <vector>
 #include <zmq.h>
 #include <czmq.h>
+#include <termios.h>
 #include "zmq/zhelpers.h"
 #include "joystick/joystick.hh"
 #include "SharkConfig.h"
 #include "json.h"
 #include "config.h"
+#include "lidar.h"
 
 #define TJE_IMPLEMENTATION
 #include "tiny_jpeg/tiny_jpeg.h"
@@ -28,11 +30,8 @@ using namespace raspicam;
 
 
 //this can be disabled to run on linux platforms w no i2c for testing camera, prediction code.
-#if ENABLE_CAR
+#define ENABLE_CAR 1
 #include "mcqueen/car/Car.h"
-#else
-#warning "car disabled"
-#endif
 
 //if we need a usb camera support
 #include "v4l_helper/capture_raw_frames.h"
@@ -292,6 +291,7 @@ protected:
     int m_iFrameToPrint;
     char m_label[MAX_STR_LEN];
     uint64_t m_start;
+    Config* m_pConf;
 };
 
 
@@ -312,14 +312,34 @@ bool doIgnoreAxis(int* ignoreIds, int ignoreCount, int axisId)
 ///////////////////////////////////////////////////////////////////////////////
 //LED status light
 
-#if ENABLE_CAR
-Gpio* pGpio = NULL;
-#endif
-
-int status_pin = 16;
+PwmServo* led_status_pwm = NULL;
 uint64_t last_change = 0;
 bool led_on = false;
 void led_status(bool onOff);
+
+void init_led_status(Config* conf, PCA9685* pwm )
+{
+    if(conf == NULL || pwm == NULL)
+    {
+        printf("led status got null configuration.\n");
+        return;
+    }
+
+    PwmServoConfig servoConfig;
+    servoConfig.channel = conf->GetInt("status_pin_pwm_ch", -1);
+    servoConfig.posInit = conf->GetInt("status_pin_lo", 0);
+    servoConfig.posMaxRight = conf->GetInt("status_pin_hi", 1000);
+
+    if(servoConfig.channel == -1)
+    {
+        printf("status_pin_pwm_ch not set in config file. Status led disabled.\n");
+        return;
+    }
+
+    led_status_pwm = new PwmServo 	(&servoConfig, pwm);
+    led_status_pwm->init();
+    printf("Led status ready: %d\n", led_status_pwm->isReady());
+}
 
 void blink_led_status(float rate)
 {
@@ -335,22 +355,14 @@ void blink_led_status(float rate)
 
 void led_status(bool onOff)
 {
-#if ENABLE_CAR
+    if(led_status_pwm == NULL)
+        return;
 
-    if(pGpio == NULL)
-        pGpio = new Gpio(2);
+    if(onOff == false)
+        led_status_pwm->setPwm(led_status_pwm->getCfg().posInit);
+    else if(onOff == true)
+        led_status_pwm->setPwm(led_status_pwm->getCfg().posMaxRight);
 
-    Pin* pPin = pGpio->getPin(status_pin);
-
-    if(pPin != NULL)
-    {
-        if(onOff == false)
-            pPin->setValue(0);
-        else if(onOff == true)
-            pPin->setValue(1);
-    }
-
-#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -362,9 +374,13 @@ void* ProcessJoyStick(void* args)
 
     Joystick joystick;
 
-    bool verbose = conf->GetInt("debug_test_js", 0) == 1;
-
     const char* js_path = conf->GetStr("js_path", "/dev/input/js0");
+
+    //set debug flag to see all output from js echoed to console
+    bool bVerbose = conf->GetInt("debug_test_js", 0);
+
+    //set debug flag to see all output from js echoed to console
+    bool bShowFPS = conf->GetInt("debug_display_fps", 1);
 
     //Wait for joystick to connect. It may be connected via Bluetooth and take a moment
     //to arrive. Once connected, we don't yet handle disconnect/reconnect.
@@ -375,8 +391,8 @@ void* ProcessJoyStick(void* args)
         joystick.openPath(js_path);
     }
 
-    if(verbose)
-        printf("joystick is found on: %s\n", js_path);
+    if(bVerbose)
+        printf("joystick connected at %s\n", js_path);
 
     //The PS3 sixaxis controller spews constant orientation data
     //on these three axis channels. Suppressing this saves time downstream.
@@ -421,18 +437,18 @@ void* ProcessJoyStick(void* args)
             {
                 if(event.number == axisSteer)
                 {
-                    if(verbose)
-                        printf("steering input: %d\n", event.value);
-
+                    if(bVerbose)
+                        printf("steer: %d\n", event.value);
+    
                     record.steer = event.value;
                     record.tick = clock();
                     g_AxisInput.Write(record);
                 }
                 else if(event.number == axisThrottle)
                 {
-                    if(verbose)
-                        printf("throttle input: %d\n", event.value);
-
+                    if(bVerbose)
+                        printf("throttle: %d\n", event.value);
+    
                     //we reverse the throttle so Up is forward.
                     record.throttle = event.value * -1;
                     record.tick = clock();
@@ -441,7 +457,13 @@ void* ProcessJoyStick(void* args)
             }
         }
 
-        profile.OnFrameIter();
+        if(!joystick.isFound())
+        {
+            printf("we lost the joystick!\n");
+        }
+
+        if(bShowFPS)
+            profile.OnFrameIter();
     }
 
     return NULL;
@@ -464,6 +486,9 @@ void* ProcessRaspiCamera(void* args)
 
     int width = conf->GetInt("raspi_camera_cap_width", 160);
     int height = conf->GetInt("raspi_camera_cap_height", 120);
+
+    //set debug flag to see all output from js echoed to console
+    bool bShowFPS = conf->GetInt("debug_display_fps", 1);
 
     raspicam::RaspiCam* cam = new raspicam::RaspiCam();
 
@@ -561,7 +586,8 @@ void* ProcessRaspiCamera(void* args)
                 //printf("wrong image size.\n");
             }
 
-            profile.OnFrameIter();
+            if(bShowFPS)
+                profile.OnFrameIter();
        }
     }
 
@@ -578,6 +604,51 @@ void* ProcessRaspiCamera(void* args)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// unsistort fisheye lens
+/*
+https://stackoverflow.com/questions/2477774/correcting-fisheye-distortion-programmatically
+
+def dist(x,y):
+    return sqrt(x*x+y*y)
+
+def correct_fisheye(src_size,dest_size,dx,dy,factor):
+    """ returns a tuple of source coordinates (sx,sy)
+        (note: values can be out of range)"""
+    # convert dx,dy to relative coordinates
+    rx, ry = dx-(dest_size[0]/2), dy-(dest_size[1]/2)
+    # calc theta
+    r = dist(rx,ry)/(dist(src_size[0],src_size[1])/factor)
+    if 0==r:
+        theta = 1.0
+    else:
+        theta = atan(r)/r
+    # back to absolute coordinates
+    sx, sy = (src_size[0]/2)+theta*rx, (src_size[1]/2)+theta*ry
+    # done
+    return (int(round(sx)),int(round(sy)))
+
+https://stackoverflow.com/questions/33782307/c-opencv-undistort-image-by-pixel
+
+def undistort()
+    Point2d pr; //distorted point/pixel
+    double dx = (pr.x - ppx);
+    double dy = (a * pr.y - a * ppy);
+
+    //calculate the scale factor
+
+    double s = 1 + (pow(vrx, 2) + pow(vry, 4));
+
+    //correct the distortion per point
+
+    Point2d pc; //undistorted point/pixel
+    pc.x = ((s * dx) + ppx);
+    pc.y= ((s * dy) + ppy) / a;
+*/
+
+//void undistort(int pr_x, int pr_y, width, height, )
+
+
+///////////////////////////////////////////////////////////////////////////////
 // Capture frames from a video for linux device ( USB or whatnot.. )
 
 Profiler g_v4l_profile("V4l", 900);
@@ -588,6 +659,7 @@ struct CaptureSettings
     int capture_height;
     int dest_width;
     int dest_height;
+    int show_fps;
 };
 
 /// Expects a YUYV image, processes to RGB and then adds to
@@ -710,11 +782,15 @@ void process_image(const void *p, int size, void* userData)
        
     }
 
+    //Test undistort.
+    //undisort_image(dest_rgb_image, width, height);
+
     v4lImage.tick = clock();
 
     g_Images.FinishWrite();
 
-    g_v4l_profile.OnFrameIter();
+    if(cs->show_fps)
+        g_v4l_profile.OnFrameIter();
 }
 
 void* ProcessV4lCamera(void* args)
@@ -727,6 +803,8 @@ void* ProcessV4lCamera(void* args)
     cs.capture_height = conf->GetInt("v4l_camera_cap_height", 240);
     cs.dest_width = conf->GetInt("col", 160);
     cs.dest_height = conf->GetInt("row", 120);
+    cs.show_fps = conf->GetInt("debug_display_fps", 1);
+    
     const char* devicePath = conf->GetStr("v4l_device_name", "/dev/video0");
     int fps = conf->GetInt("v4l_fps", 60);
 
@@ -822,7 +900,8 @@ void process_pg_image(const void *p, int size, void* userData)
 
     g_Images.FinishWrite();
 
-    g_pg_profile.OnFrameIter();
+    if(cs->show_fps)
+        g_pg_profile.OnFrameIter();
 
 #endif //ENABLE_POINT_GREY_CAMERA
 }
@@ -832,13 +911,14 @@ void* ProcessPGCamera(void* args)
 #ifdef ENABLE_POINT_GREY_CAMERA
     
     Config* conf = (Config*)args;
-
+   
     CaptureSettings cs;
 
     cs.capture_width = conf->GetInt("pg_camera_cap_width", 640);
     cs.capture_height = conf->GetInt("pg_camera_cap_height", 480);
     cs.dest_width = conf->GetInt("col", 160);
     cs.dest_height = conf->GetInt("row", 120);
+    cd.show_fps = conf->GetInt("debug_display_fps", 1);
 
     printf("Initing point grey camera.\n");
 
@@ -932,6 +1012,9 @@ void* ProcessLogger(void * args)
 
     //where are we saving log images
     const char* logDir = conf->GetStr("log_dir", "log");
+
+    //set debug flag to see all output from js echoed to console
+    bool bShowFPS = conf->GetInt("debug_display_fps", 1);
 
     ensureLogDir(logDir);
     char imagefilename[MAX_PATH_LEN];
@@ -1027,7 +1110,8 @@ void* ProcessLogger(void * args)
                 blink_led_status(1.0f);
             }
 
-            profile.OnFrameIter();  
+            if(bShowFPS)
+                profile.OnFrameIter();  
         }
         
     }
@@ -1035,19 +1119,16 @@ void* ProcessLogger(void * args)
     return NULL;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Save images and axis input pairs. 
-
-void* ProcessRobot(void * args)
+int hex_str_to_int(const char* value)
 {
-#if ENABLE_CAR
+    return strtol(value, NULL, 16);;
+}
 
-    Config* conf = (Config*)args;
-
-    Car car;
-    PwmServoConfig steeringConfig;
-    PwmEscConfig escConfig;
-
+void LoadCarConfigs(Config* conf,
+    PwmServoConfig& steeringConfig, 
+		PwmEscConfig& escConfig,
+		PWMBoardConfig& boardConfig)
+{
     steeringConfig.channel      = conf->GetInt("ada_steering_servo_channel", 1);
 	steeringConfig.frequency 	= conf->GetInt("pwm_servo_freq", 60);
 	steeringConfig.resolution 	= conf->GetInt("pwm_servo_resolution", 4096);
@@ -1069,7 +1150,160 @@ void* ProcessRobot(void * args)
 	escConfig.posMinReverse	= conf->GetInt("esc_throttle_lo", 350);
 	escConfig.posMaxReverse	= conf->GetInt("esc_init_lo", 200);
 
-    car.init(&steeringConfig, &escConfig);
+    boardConfig.i2c_address = hex_str_to_int(conf->GetStr("pwm_ic2_address", "0x40"));
+    boardConfig.device_file = conf->GetStr("pwm_device_file", boardConfig.device_file.c_str());
+}
+
+int getkey() {
+    int character;
+    struct termios orig_term_attr;
+    struct termios new_term_attr;
+
+    /* set the terminal to raw mode */
+    tcgetattr(fileno(stdin), &orig_term_attr);
+    memcpy(&new_term_attr, &orig_term_attr, sizeof(struct termios));
+    new_term_attr.c_lflag &= ~(ECHO|ICANON);
+    new_term_attr.c_cc[VTIME] = 0;
+    new_term_attr.c_cc[VMIN] = 0;
+    tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
+
+    /* read a character from the stdin stream without blocking */
+    /*   returns EOF (-1) if no character is available */
+    character = fgetc(stdin);
+
+    /* restore the original terminal attributes */
+    tcsetattr(fileno(stdin), TCSANOW, &orig_term_attr);
+
+    return character;
+}
+
+
+void* ProcessPWMDebug(void * args)
+{
+#if ENABLE_CAR
+
+    Config* conf = (Config*)args;
+    PwmServoConfig servoConfig;
+    PwmEscConfig escConfig;
+    PWMBoardConfig boardConfig;
+
+    LoadCarConfigs(conf, servoConfig, escConfig, boardConfig);
+    int debug_channel = conf->GetInt("debug_pwm_ch", 0);
+    printf("debug calibrate pwm channel: %d\n", debug_channel);
+    
+    I2cBus* i2c = new I2cBus(boardConfig.device_file.c_str());
+    PCA9685* pwm = new PCA9685(i2c, boardConfig.i2c_address, servoConfig.frequency);
+
+    servoConfig.channel = debug_channel;
+    PwmServo* servo = new PwmServo 	(&servoConfig, pwm);
+
+    int ready = 0;
+
+    if (i2c->isReady() && pwm->isReady() && servo->isReady()) 
+        ready = 1;
+    else
+        printf("failed to prepare servo for debug session.\n");
+
+    int high = conf->GetInt("debug_pwm_hi", 600);
+    int middle = conf->GetInt("debug_pwm_mid", 400);
+    int low = conf->GetInt("debug_pwm_lo", 200);
+    int dv = 10;
+    int key;
+    int showHelp = 1;
+    int value = middle;
+
+    while(ready)
+    {
+        servo->setPwm(value);
+
+        if(showHelp)
+        {
+            printf("cur value: %d\n", value);
+            printf("controls: (u)p by 10 (d)own by 10 (h)igh (l)ow (m)middle\n");
+            showHelp = 0;
+        }
+
+        key = getkey();
+        
+        if(key == -1)
+            continue;
+
+        printf("key: %d\n", key);
+
+        switch(key)
+        {
+            case 104:
+                value = high;
+                showHelp = 1;
+                break;
+
+            case 108:
+                value = low;
+                showHelp = 1;
+                break;
+
+            case 109:
+                value = middle;
+                showHelp = 1;
+                break;
+
+            case 117:
+                value += dv;
+                if (value > high)
+                    value = high;
+                showHelp = 1;
+                break;
+
+            case 100:
+                value -= dv;
+                if (value < low)
+                    value = low;
+                showHelp = 1;
+                break;
+            
+            default:
+                break;
+        }
+    }
+
+#endif
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Save images and axis input pairs. 
+
+void* ProcessRobot(void * args)
+{
+#if ENABLE_CAR
+
+    Config* conf = (Config*)args;
+
+    //set debug flag to see all output from js echoed to console
+    bool bShowFPS = conf->GetInt("debug_display_fps", 1);
+
+    //set debug flag to show car status on boot
+    bool bCarBootStatus = conf->GetInt("debug_show_car_detailed_status", 1);
+
+    bool bEnableCar = conf->GetInt("enable_pwm_car_control", 1);
+
+    if(!bEnableCar)
+    {
+        printf("car pwm control disabled with enable_pwm_car_control setting in config.json\n");
+        return NULL;
+    }
+    
+
+    Car car;
+    PwmServoConfig steeringConfig;
+    PwmEscConfig escConfig;
+    PWMBoardConfig boardConfig;
+
+    LoadCarConfigs(conf, steeringConfig, escConfig, boardConfig);
+    
+    car.init(&steeringConfig, &escConfig, &boardConfig);
+
+    //init pwm led status
+    init_led_status(conf, car.getPCA9685());
 
     //local copy of axis and pred records
     AxisRecord axis, pred;
@@ -1086,7 +1320,8 @@ void* ProcessRobot(void * args)
 
     Profiler profile("Robot", 300);
 
-	car.printStatus();
+    if(bCarBootStatus)
+        car.printStatus();
 
 	if (car.isReady()) 
     {
@@ -1134,7 +1369,8 @@ void* ProcessRobot(void * args)
                 }
             }
             
-            profile.OnFrameIter();
+            if(bShowFPS)
+                profile.OnFrameIter();
         }
     }
 
@@ -1151,6 +1387,10 @@ void* ProcessRobot(void * args)
 void* ProcessKerasPredictions(void * args)
 {
     Config* conf = (Config*)args;
+
+    //set debug flag to see all output from js echoed to console
+    bool bShowFPS = conf->GetInt("debug_display_fps", 1);
+
     AxisRecord axis;
     ButtonRecord button;
     ImageRecord image;
@@ -1257,7 +1497,8 @@ void* ProcessKerasPredictions(void * args)
                 g_PredInput.Write(axis);
             }
 
-            profile.OnFrameIter();
+            if(bShowFPS)
+                profile.OnFrameIter();
            
         }
     }
@@ -1308,6 +1549,33 @@ void* ProcessWebUpdate(void * args)
         //send image to web server
         send_message(socket, image.image, max_image_len);
     }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Process Lidar
+
+void* ProcessLidarUpdate(void * args)
+{
+    Config* conf = (Config*)args;
+
+    //set debug flag to see all output from js echoed to console
+    bool bShowFPS = conf->GetInt("debug_display_fps", 1);
+
+    Profiler profile("Lidar", 300);
+
+    if(InitLidar(conf))
+    {
+        while(programRunning)
+        {
+            UpdateLidar();
+
+            if(bShowFPS)
+                profile.OnFrameIter();
+        }
+    }
+
+    ShutdownLidar();
 }
 
 // Define the function to be called when ctrl-c (SIGINT) signal is sent to process
@@ -1396,6 +1664,8 @@ int main(int argc, char** argv)
     /////////////////////////////////
     // Launch our worker threads
 
+    bool bLaunchPWMInteractiveConfigurator = conf.GetInt("debug_test_pwm", 0);
+
     pthread_t thread_js;
     pthread_create(&thread_js, NULL, ProcessJoyStick, &conf);
 
@@ -1411,7 +1681,10 @@ int main(int argc, char** argv)
     pthread_create(&thread_log, NULL, ProcessLogger, &conf);
 
     pthread_t thread_robot;
-    pthread_create(&thread_robot, NULL, ProcessRobot, &conf);
+    if(bLaunchPWMInteractiveConfigurator)
+        pthread_create(&thread_robot, NULL, ProcessPWMDebug, &conf);
+    else
+        pthread_create(&thread_robot, NULL, ProcessRobot, &conf);
 
     pthread_t thread_pred;
     if(predType == Pred_Keras)
@@ -1419,6 +1692,9 @@ int main(int argc, char** argv)
     
     pthread_t thread_web_update;
     pthread_create(&thread_web_update, NULL, ProcessWebUpdate, &conf);
+
+    pthread_t thread_lidar_update;
+    pthread_create(&thread_lidar_update, NULL, ProcessLidarUpdate, &conf);
 
     /////////////////////////////////
     // wait for worker threads to exit
@@ -1435,7 +1711,9 @@ int main(int argc, char** argv)
     printf("pred thread exited.\n");
     pthread_join(thread_web_update, NULL);
     printf("web update thread exited.\n");
-
+    pthread_join(thread_lidar_update, NULL);
+    printf("lidar update thread exited.\n");
+    
     programExited = true;
 
     return 0;

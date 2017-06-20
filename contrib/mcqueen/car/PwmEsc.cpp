@@ -29,10 +29,15 @@
  *
  */
 
+#include "SharkConfig.h"
 #include <iostream>
 #include <cmath>
 #include <stdlib.h>
-#include <wiringPi.h>
+#if ENABLE_WIRING_PI 
+	#include <wiringPi.h>
+#else
+	#include "wiringPiLite.h"
+#endif
 #include "PCA9685.h"
 #include "PwmEsc.h"
 
@@ -168,17 +173,22 @@ int PwmEsc::init(void)
 	// PWM ESC initializing sequence (arming): max forward, max reverse, then idle.
 	// not checking for the success of those commands here because if they didn't work,
 	// we will see that later when we set the initial position
+	int delay_duration = 5;
+	
 	pwm->setPwm(cfg.channel, cfg.posMaxForward);
-	delay(5);
+	delay(delay_duration);
 	pwm->setPwm(cfg.channel, cfg.posMaxReverse);
-	delay(5);
+	delay(delay_duration);
 	pwm->setPwm(cfg.channel, cfg.posIdle);
-	delay(5);
+	delay(delay_duration);
+
+	printf("initing ESC on channel %d, with seq %d - %d - %d\n", 
+		cfg.channel, cfg.posMaxForward, cfg.posMaxReverse, cfg.posIdle);
 
 
 	// Send command to set the ESC is the initial position (as specified in the config)
 	success = pwm->setPwm(cfg.channel, cfg.posInit);
-	delay(5);
+	delay(delay_duration);
 
 	// On success, save the last good PWM value and set the ready flag to 1 (success)
 	if (success)
