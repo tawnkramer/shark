@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "lidar.h"
 
 #if ENABLE_RPLIDAR
@@ -12,8 +13,21 @@
 using namespace rp::standalone::rplidar;
 
 // the driver instance
-RPlidarDriver * g_pDrv = NULL;
-bool bVerboseLidarOutput = false;
+struct RPLidarMan
+{
+    RPLidarMan() {
+        m_pDrv = NULL;
+        m_bVerboseLidarOutput = false;
+        m_pUserData = NULL;
+    }
+
+    RPlidarDriver * m_pDrv;
+    bool m_bVerboseLidarOutput;
+    void* m_pUserData;
+    LidarRetSet m_Set;
+};
+
+RPLidarMan g_Lidar;
 
 bool checkRPLIDARHealth(RPlidarDriver * drv)
 {
@@ -40,18 +54,20 @@ bool checkRPLIDARHealth(RPlidarDriver * drv)
 }
 
 
-bool InitLidar(Config* conf) 
+bool InitLidar(Config* conf, void* userData) 
 {
+    g_Lidar.m_pUserData = userData;
+
     const char * opt_com_path = conf->GetStr("lidar_dev_file", "/dev/ttyUSB0");
     _u32         opt_com_baudrate = 115200;
     u_result     op_result;
 
-    bVerboseLidarOutput = conf->GetInt("lidar_verbose_output", 0);
+    g_Lidar.m_bVerboseLidarOutput = conf->GetInt("lidar_verbose_output", 0);
 
     // create the driver instance
-    g_pDrv = RPlidarDriver::CreateDriver(RPlidarDriver::DRIVER_TYPE_SERIALPORT);
+    g_Lidar.m_pDrv = RPlidarDriver::CreateDriver(RPlidarDriver::DRIVER_TYPE_SERIALPORT);
     
-    if (!g_pDrv) 
+    if (!g_Lidar.m_pDrv) 
     {
         fprintf(stderr, "insufficent memory, exit\n");
         return false;
@@ -60,7 +76,7 @@ bool InitLidar(Config* conf)
     bool problems = false;
 
     // make connection...
-    if (IS_FAIL(g_pDrv->connect(opt_com_path, opt_com_baudrate))) {
+    if (IS_FAIL(g_Lidar.m_pDrv->connect(opt_com_path, opt_com_baudrate))) {
         fprintf(stderr, "Error, cannot bind to the specified serial port %s.\n"
             , opt_com_path);
         problems = true;
@@ -72,7 +88,7 @@ bool InitLidar(Config* conf)
     ////////////////////////////////////////
     if(!problems)
     {
-        op_result = g_pDrv->getDeviceInfo(devinfo);
+        op_result = g_Lidar.m_pDrv->getDeviceInfo(devinfo);
 
         if (IS_FAIL(op_result)) {
             fprintf(stderr, "Error, cannot get device info.\n");
@@ -99,14 +115,14 @@ bool InitLidar(Config* conf)
     // check health...
     if (!problems)
     {
-        problems = !checkRPLIDARHealth(g_pDrv);
+        problems = !checkRPLIDARHealth(g_Lidar.m_pDrv);
     }
 	
     if(!problems)
     {
-        g_pDrv->startMotor();
+        g_Lidar.m_pDrv->startMotor();
         // start scan...
-        g_pDrv->startScan();
+        g_Lidar.m_pDrv->startScan();
     }
     else
     {
@@ -116,21 +132,21 @@ bool InitLidar(Config* conf)
     return !problems;
 }
 
-void UpdateLidar()
+void UpdateLidar(process_lidar_cb cb)
 {
-   if(g_pDrv == NULL)
+   if(g_Lidar.m_pDrv == NULL)
         return;
 
     rplidar_response_measurement_node_t nodes[360*2];
     size_t   count = _countof(nodes);
 
-    u_result op_result = g_pDrv->grabScanData(nodes, count);
+    u_result op_result = g_Lidar.m_pDrv->grabScanData(nodes, count);
 
     if (IS_OK(op_result)) 
     {
-        g_pDrv->ascendScanData(nodes, count);
+        g_Lidar.m_pDrv->ascendScanData(nodes, count);
     
-        if(bVerboseLidarOutput)
+        if(g_Lidar.m_bVerboseLidarOutput)
         {
             for (int pos = 0; pos < (int)count ; ++pos) 
             {
@@ -141,24 +157,28 @@ void UpdateLidar()
                     nodes[pos].sync_quality >> RPLIDAR_RESP_MEASUREMENT_QUALITY_SHIFT);
             }
         }
+
+        memcpy(&g_Lidar.m_Set.m_Returns[0], &nodes[0], sizeof(LidarRet) * LidarRetSet::NUM_LIDAR_RETURNS);
+
+        cb(&g_Lidar.m_Set, g_Lidar.m_pUserData);
     }
 }
 
 void ShutdownLidar()
 {
-    if(g_pDrv == NULL)
+    if(g_Lidar.m_pDrv == NULL)
         return;
 
-    g_pDrv->stop();
-    g_pDrv->stopMotor();
-    RPlidarDriver::DisposeDriver(g_pDrv);
-    g_pDrv = NULL;
+    g_Lidar.m_pDrv->stop();
+    g_Lidar.m_pDrv->stopMotor();
+    RPlidarDriver::DisposeDriver(g_Lidar.m_pDrv);
+    g_Lidar.m_pDrv = NULL;
 }
 
 #else //ENABLE_RPLIDAR
 
-bool InitLidar(Config* conf) { return false; }
-void UpdateLidar(){}
+bool InitLidar(Config* conf, void* userdata) { return false; }
+void UpdateLidar(process_lidar_cb cb){}
 void ShutdownLidar(){}
 
 #endif //ENABLE_RPLIDAR

@@ -142,6 +142,15 @@ struct ImageRecord
 };
 
 ///////////////////////////////////////////////////////////////////////////////
+// Lidar return set with time stamp
+
+struct LidarRecord
+{
+    LidarRetSet m_Set;
+    uint64_t tick;
+};
+
+///////////////////////////////////////////////////////////////////////////////
 //A lock free ring buffer that allows a consumer and producer to write
 //and read at once from different threads. The reader gets the latest record written.
 //The writer is always advancing iregardless of the reader.
@@ -229,6 +238,9 @@ RingBuffer<AxisRecord, 10> g_PredInput;
 
 //Our ring buffer of images
 RingBuffer<ImageRecord, 3> g_Images;
+
+//Our ring buffer of lidar
+RingBuffer<LidarRecord, 3> g_LidarInput;
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -1555,6 +1567,23 @@ void* ProcessWebUpdate(void * args)
 ///////////////////////////////////////////////////////////////////////////////
 // Process Lidar
 
+//callback to deal with return data
+void process_lidar_return(const LidarRetSet *p, void* userData)
+{
+    //desination frame
+    LidarRecord& rec = g_LidarInput.BeginWrite();                
+
+    //stamp with time stamp
+    rec.tick = clock();
+
+    //deep copy lidar returns
+    memcpy(rec.m_Set.m_Returns, p->m_Returns, sizeof(p->m_Returns));
+    
+    //advance the read head
+    g_LidarInput.FinishWrite();
+}
+
+//Main thread to process lidar device
 void* ProcessLidarUpdate(void * args)
 {
     Config* conf = (Config*)args;
@@ -1562,13 +1591,13 @@ void* ProcessLidarUpdate(void * args)
     //set debug flag to see all output from js echoed to console
     bool bShowFPS = conf->GetInt("debug_display_fps", 1);
 
-    Profiler profile("Lidar", 300);
+    Profiler profile("Lidar", 100);
 
     if(InitLidar(conf))
     {
         while(programRunning)
         {
-            UpdateLidar();
+            UpdateLidar(process_lidar_return);
 
             if(bShowFPS)
                 profile.OnFrameIter();
@@ -1577,6 +1606,9 @@ void* ProcessLidarUpdate(void * args)
 
     ShutdownLidar();
 }
+
+///////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
 
 // Define the function to be called when ctrl-c (SIGINT) signal is sent to process
 void
