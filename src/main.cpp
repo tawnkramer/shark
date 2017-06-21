@@ -604,7 +604,7 @@ void* ProcessRaspiCamera(void* args)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// unsistort fisheye lens
+// undistort fisheye lens
 /*
 https://stackoverflow.com/questions/2477774/correcting-fisheye-distortion-programmatically
 
@@ -918,7 +918,7 @@ void* ProcessPGCamera(void* args)
     cs.capture_height = conf->GetInt("pg_camera_cap_height", 480);
     cs.dest_width = conf->GetInt("col", 160);
     cs.dest_height = conf->GetInt("row", 120);
-    cd.show_fps = conf->GetInt("debug_display_fps", 1);
+    cs.show_fps = conf->GetInt("debug_display_fps", 1);
 
     printf("Initing point grey camera.\n");
 
@@ -928,7 +928,7 @@ void* ProcessPGCamera(void* args)
         return NULL;
     }
 
-    while(true)
+    while(programRunning)
     {
         //all work done in callback now.
         //UpdatePGCamera(process_pg_image);

@@ -158,7 +158,7 @@ void ShutdownLidar()
 #else //ENABLE_RPLIDAR
 
 bool InitLidar(Config* conf) { return false; }
-void UpdateLidar()()
+void UpdateLidar(){}
 void ShutdownLidar(){}
 
 #endif //ENABLE_RPLIDAR
