@@ -258,7 +258,7 @@ class WebSite(object):
         <br>
         <img  class="img_stream" src="/img_live"></img><br>        
         <a href="/">home</a><br>
-        <a href="/check_robot">check robot</a><br>
+        <a href="/lidar">lidar</a><br>
         ''')
     manage_robot.exposed = True
 
@@ -276,6 +276,7 @@ class WebSite(object):
         res.append('<img src="/img_live"></img><br>')
         res.append(self.home_link())        
         res.append('<a href="/manage_robot">robot</a><br>')
+        res.append('<a href="/lidar">lidar</a><br>')
         return self.easy_page("".join(res))
     check_robot.exposed = True
 
@@ -327,6 +328,47 @@ class WebSite(object):
         return content()
     img_live.exposed = True
     img_live._cp_config = {'response.stream': True}
+
+    def lidar(self):
+        res = []
+        res.append(self.home_link())        
+        res.append("<br>")
+        res.append('<a href="/manage_robot">robot</a><br>')
+        res.append("<br>")      
+        res.append('<img src="/lidar_live"></img><br>')
+        return self.easy_page("".join(res))
+    lidar.exposed = True
+
+    def lidar_live(self):
+        cherrypy.response.headers["Content-Type"] = "multipart/x-mixed-replace;boundary=--boundarydonotcross"
+        boundary = "--boundarydonotcross"
+        def content():
+            iImage = 0
+            context = zmq.Context()
+            socket = context.socket(zmq.REQ)
+            connect_str = "tcp://127.0.0.1:%d" % conf.web_lidar_port
+            print "connecting to live image at:", connect_str
+            socket.connect(connect_str)
+            command = "hi"
+            row, col, ch = 512, 512, 3
+            font = ImageFont.truetype("./static/fonts/BADABB__.TTF", 16)
+            while True:
+                socket.send(command)
+                img_str = socket.recv()
+                lin_arr = np.fromstring(img_str, dtype=np.uint8)
+                img_arr = lin_arr.reshape(row, col, ch)
+                img = Image.fromarray(img_arr, "RGB")
+                with BytesIO() as output:
+                    img.save(output, "JPEG")
+                    jpg_img = output.getvalue()
+                yield(boundary)
+                yield("Content-type: image/jpeg\r\n")
+                yield("Content-length: %s\r\n\r\n" % len(jpg_img))
+                yield(jpg_img)
+                
+        return content()
+    lidar_live.exposed = True
+    lidar_live._cp_config = {'response.stream': True}
 
     def manage_log(self):
         res = []

@@ -28,6 +28,7 @@
 using namespace raspicam;
 #endif
 
+const float PI = 3.14159265358979323846;
 
 //this can be disabled to run on linux platforms w no i2c for testing camera, prediction code.
 #define ENABLE_CAR 1
@@ -1563,6 +1564,131 @@ void* ProcessWebUpdate(void * args)
     }
 }
 
+void LidarReturnToImage(const LidarRecord& lidarReturn, unsigned char* pImage, int width, int height, int depth)
+{
+    memset(pImage, 0, width * height * depth);
+
+    int centerX = width / 2;
+    int centerY = height / 2;
+    float longestReturn = 0.0f;
+    static float scale = 1.0f;
+    int end_image = width * height * depth;
+    
+    for(int iRec = 0; iRec < lidarReturn.m_Set.m_Count; iRec++)
+    {
+        const LidarRet& ret = lidarReturn.m_Set.m_Returns[iRec];
+
+        if(ret.GetDistance() > longestReturn)
+            longestReturn = ret.GetDistance();
+    }
+
+    //set the scale such that we can handle the longest return value
+    //setting it each iteration causes image to pulse. Experiment with keeping the first
+    //value calculated. Perhaps a weighted average in the future.
+    if (scale == 1.0f)
+        scale = centerX / (longestReturn + 1.0);
+
+    //convert degrees to radians
+    const float deg_to_rad = PI / 180.0f;
+
+    //the image looks better when forward returns are up in the image, not to the right.
+    const float theta_offset = -90.0f * deg_to_rad;
+
+    //transform polar coordinates to image coordinates
+
+    for(int iRec = 0; iRec < lidarReturn.m_Set.m_Count; iRec++)
+    {
+        const LidarRet& ret = lidarReturn.m_Set.m_Returns[iRec];
+
+        float d = ret.GetDistance() * scale;
+
+        float theta = ret.GetAngle() * deg_to_rad + theta_offset;
+
+        int x = cosf(theta) * d;
+        int y = sinf(theta) * d;
+
+        int offset = ((centerX + x) + (centerY + y) * width) * depth;
+
+        if(offset >= 0 && offset < end_image)
+        {
+            //write a full intensity pixel to all three channels of the image
+             pImage[offset] = 255;
+
+             if(depth == 3)
+             {
+                pImage[offset + 1] = 255;
+                pImage[offset + 2] = 255;
+             }
+        }
+    }
+}
+
+void SaveLidarToImage(const LidarRecord& lidarReturn, const char* imagefilename)
+{
+    //Save lidar return to a jpg image.
+    const int width = 512;
+    const int height = 512;
+    const int num_components = 3;
+    const int max_image_len = width * height * num_components;
+    unsigned char lidar_image[max_image_len];
+
+    //Transform lidar return into an image
+    LidarReturnToImage(lidarReturn, lidar_image, width, height, num_components);
+
+    if ( !tje_encode_to_file(imagefilename, width, height, num_components, lidar_image) ) 
+    {
+        fprintf(stderr, "Could not write JPEG\n");
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Reply to webserver with updates from our Lidar
+
+void* ProcessWebLidar(void * args)
+{
+    Config* conf = (Config*)args;  
+    LidarRecord lidarReturn;
+    uint64_t last_image = 0;
+    int web_lidar_port = conf->GetInt("web_lidar_port", 9192);
+    void *context = zmq_ctx_new ();
+    void *socket = zmq_socket (context, ZMQ_REP);
+    char connection[MAX_STR_LEN];
+    sprintf(connection, "tcp://*:%d", web_lidar_port);
+    printf("listening for web lidar requests on: %s\n", connection);
+    zmq_bind(socket, connection);
+    char buffer [1024];
+
+    //Init image dimensions
+    const int rows = 512;//conf->GetInt("row", 120);
+    const int cols = 512;//conf->GetInt("col", 160);
+    const int ch = 3;//conf->GetInt("ch", 3);
+    const int max_image_len = rows * cols * ch;
+    unsigned char lidar_image[max_image_len];
+
+
+    while(programRunning)
+    {
+        //this just blocks until it gets a request.
+        int count = zmq_recv (socket, buffer, 1024, 0);
+
+        //wait for a new image. not likely very long, unless
+        //camera is down.
+        while(!g_LidarInput.Read(lidarReturn))
+        {
+            usleep(10000);
+        }
+
+        //keep track of last image read
+        last_image = lidarReturn.tick;
+
+        //Transform lidar return into an image
+        LidarReturnToImage(lidarReturn, lidar_image, rows, cols, ch);
+
+        //send image to web server
+        send_message(socket, lidar_image, max_image_len);
+    }
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Process Lidar
@@ -1579,6 +1705,12 @@ void process_lidar_return(const LidarRetSet *p, void* userData)
     //deep copy lidar returns
     memcpy(rec.m_Set.m_Returns, p->m_Returns, sizeof(p->m_Returns));
     
+    //For testing...
+    // static int iImage = 0;
+    // char filename[256];
+    // sprintf(filename, "lidar_%03d.jpg", iImage++);
+    // SaveLidarToImage(rec, filename);
+
     //advance the read head
     g_LidarInput.FinishWrite();
 }
@@ -1728,6 +1860,9 @@ int main(int argc, char** argv)
     pthread_t thread_lidar_update;
     pthread_create(&thread_lidar_update, NULL, ProcessLidarUpdate, &conf);
 
+    pthread_t thread_web_lidar;
+    pthread_create(&thread_web_lidar, NULL, ProcessWebLidar, &conf);
+
     /////////////////////////////////
     // wait for worker threads to exit
 
@@ -1745,6 +1880,8 @@ int main(int argc, char** argv)
     printf("web update thread exited.\n");
     pthread_join(thread_lidar_update, NULL);
     printf("lidar update thread exited.\n");
+    pthread_join(thread_web_lidar, NULL);
+    printf("web lidar update thread exited.\n");
     
     programExited = true;
 

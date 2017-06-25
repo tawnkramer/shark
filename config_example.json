@@ -171,6 +171,8 @@
 //port for web image feed
 "web_image_port": 9191,
 
+//port for web lidar feed
+"web_lidar_port": 9192,
 
 //////////////////////////////////////////
 // ec2 settings

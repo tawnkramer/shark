@@ -158,7 +158,26 @@ void UpdateLidar(process_lidar_cb cb)
             }
         }
 
-        memcpy(&g_Lidar.m_Set.m_Returns[0], &nodes[0], sizeof(LidarRet) * LidarRetSet::NUM_LIDAR_RETURNS);
+        //reurn size doesn't quite match my structure size yet. TODO.. probably because of the __atribute__ packed. figure
+        //this out and do a memcpy. Probably much faster. Though on the jetson, this doesn't add any appreciable delay.
+        if(sizeof(nodes) == sizeof(g_Lidar.m_Set.m_Returns))
+        {
+            memcpy(&g_Lidar.m_Set.m_Returns[0], &nodes[0], sizeof(nodes));
+        }
+        else
+        {
+            //do a slower element by element copy
+            g_Lidar.m_Set.m_Count = count;
+
+            for (int pos = 0; pos < (int)count ; ++pos) 
+            {
+                LidarRet& ret = g_Lidar.m_Set.m_Returns[pos];
+                rplidar_response_measurement_node_t& n = nodes[pos];
+                ret.quality = n.sync_quality;
+                ret.angle = n.angle_q6_checkbit;
+                ret.distance = n.distance_q2;
+            }
+        }
 
         cb(&g_Lidar.m_Set, g_Lidar.m_pUserData);
     }

@@ -11,9 +11,9 @@ struct LidarRet
     unsigned short angle;
     unsigned short distance;
 
-    float GetDistance() { return distance / 4.0f; }
-    float GetAngle() { return (angle >> 1) / 64.0f; }
-    int GetQuality() { return (quality >> 2); }
+    float GetDistance() const { return distance / 4.0f; }
+    float GetAngle() const { return (angle >> 1) / 64.0f; }
+    int GetQuality() const { return (quality >> 2); }
 };
 
 struct LidarRetSet
@@ -23,12 +23,12 @@ struct LidarRetSet
         NUM_LIDAR_RETURNS = 360 * 2,
     };
 
-    LidarRetSet() : count(NUM_LIDAR_RETURNS) 
+    LidarRetSet() : m_Count(NUM_LIDAR_RETURNS) 
     {
 
     }
 
-    int count;
+    int m_Count;
     LidarRet m_Returns[NUM_LIDAR_RETURNS];
 };
 
