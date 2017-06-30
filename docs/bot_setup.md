@@ -39,3 +39,9 @@ or [PS3 Eye](http://a.co/08GHjk2) or [Point Grey](http://www.ebay.com/sch/i.html
 * sudo mkdir /usr/local/include/rplidar
 * sudo cp ./sdk/include/* /usr/local/include/rplidar
 
+## Optional - setup BreezySLAM
+* git clone https://github.com/simondlevy/BreezySLAM.git
+* cd BreezySlam/cpp && make
+* sudo make install
+* sudo mkdir /usr/local/include/BreezySLAM
+* sudo cp *.hpp /usr/local/include/BreezySLAM/

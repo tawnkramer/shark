@@ -40,6 +40,9 @@ check_library_exists(wiringPi piBoardRev ${LIB_WIRINGPI} HAVE_WIRINGPI)
 #check wiringPi
 find_library(LIB_RPLIDAR rplidar_sdk)
 
+#check BreezySLAM
+find_library(LIB_BREEZY_SLAM breezyslam)
+
 # add the binary tree to the search path for include files
 # so that we will find SharkConfig.h
 include_directories("${PROJECT_BINARY_DIR}" "src" "contrib" ${PG_SDK_ROOT})
@@ -85,6 +88,13 @@ if(LIB_RPLIDAR)
   set (ENABLE_RPLIDAR 1)
 else()
   set (ENABLE_RPLIDAR 0)
+endif()
+
+if(LIB_BREEZY_SLAM)
+  TARGET_LINK_LIBRARIES(shark ${LIB_BREEZY_SLAM})
+  set (ENABLE_BRZY_SLAM 1)
+else()
+  set (ENABLE_BRZY_SLAM 0)
 endif()
 
 # configure a header file to pass some of the CMake settings

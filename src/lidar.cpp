@@ -140,6 +140,8 @@ void UpdateLidar(process_lidar_cb cb)
     rplidar_response_measurement_node_t nodes[360*2];
     size_t   count = _countof(nodes);
 
+    memset(nodes, 0, sizeof(nodes));
+    
     u_result op_result = g_Lidar.m_pDrv->grabScanData(nodes, count);
 
     if (IS_OK(op_result)) 

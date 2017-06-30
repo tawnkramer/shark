@@ -240,6 +240,9 @@
 //should we print return values to console
 "lidar_verbose_output" : 0,
 
+//should we print slam position to the console
+"slam_verbose_position": 0,
+
 
 
 //////////////////////////////////////////

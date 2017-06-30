@@ -1644,6 +1644,15 @@ void SaveLidarToImage(const LidarRecord& lidarReturn, const char* imagefilename)
 ///////////////////////////////////////////////////////////////////////////////
 // Reply to webserver with updates from our Lidar
 
+const int lidar_image_rows = 512;//conf->GetInt("row", 120);
+const int lidar_image_cols = 512;//conf->GetInt("col", 160);
+const int lidar_image_ch = 3;//conf->GetInt("ch", 3);
+const int lidar_image_max_image_len = lidar_image_rows * lidar_image_cols * lidar_image_ch;
+unsigned char lidar_image[lidar_image_max_image_len];
+
+//are we hijacking the lidar web image to write our SLAM map..
+bool bSlamToLidarImage = false;
+
 void* ProcessWebLidar(void * args)
 {
     Config* conf = (Config*)args;  
@@ -1659,13 +1668,6 @@ void* ProcessWebLidar(void * args)
     char buffer [1024];
 
     //Init image dimensions
-    const int rows = 512;//conf->GetInt("row", 120);
-    const int cols = 512;//conf->GetInt("col", 160);
-    const int ch = 3;//conf->GetInt("ch", 3);
-    const int max_image_len = rows * cols * ch;
-    unsigned char lidar_image[max_image_len];
-
-
     while(programRunning)
     {
         //this just blocks until it gets a request.
@@ -1681,14 +1683,194 @@ void* ProcessWebLidar(void * args)
         //keep track of last image read
         last_image = lidarReturn.tick;
 
-        //Transform lidar return into an image
-        LidarReturnToImage(lidarReturn, lidar_image, rows, cols, ch);
+        if(!bSlamToLidarImage)
+        {
+            //Transform lidar return into an image
+            LidarReturnToImage(lidarReturn, lidar_image, lidar_image_rows, lidar_image_cols, lidar_image_ch);
+        }
 
         //send image to web server
-        send_message(socket, lidar_image, max_image_len);
+        send_message(socket, lidar_image, lidar_image_max_image_len);
     }
 }
 
+#if ENABLE_BRZY_SLAM
+
+#include <BreezySLAM/Position.hpp>
+#include <BreezySLAM/Velocities.hpp>
+#include <BreezySLAM/Laser.hpp>
+#include <BreezySLAM/algorithms.hpp>
+
+//We define a RPLidar object from the base Laser to provide
+//specifics about our scanning hardware.
+
+class RPLidar : public Laser
+{
+    public:
+
+    enum constants
+    {
+        NUM_RAYS_PER_SCAN = 360 * 2, //half angle per ray
+        SCAN_RATE_HZ = 10,  //data rate depends on motor speed. this is about right for default.
+        DETECTION_ANGLE_DEGREES = 360, //Some lidars scan just a portion, this scans 360
+        DISTANCE_NO_DETECTION_MM = 10000, //6M according to RobotShop. Seems longer.
+        WALL_THICKNESS = 200, //Affects the width of returns when making the map.
+    };
+
+    RPLidar(int detection_margin = 0, float offset_mm = 0) : 
+        Laser(NUM_RAYS_PER_SCAN,
+         SCAN_RATE_HZ, 
+         DETECTION_ANGLE_DEGREES, 
+         DISTANCE_NO_DETECTION_MM, 
+         detection_margin, offset_mm) { }
+    
+};
+
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+// Process Lidar to product map - SLAM
+
+void* ProcessSLAM(void * args)
+{
+#if ENABLE_BRZY_SLAM
+
+    Config* conf = (Config*)args;  
+    LidarRecord lidarReturn;
+    uint64_t last_image = 0;
+    float offsetCarCenterMM = 100.0f;
+
+    bool bShowSlamPos = conf->GetInt("slam_verbose_position", 1);
+
+    RPLidar* laser = new RPLidar(0, offsetCarCenterMM);
+    int map_size_pixels = lidar_image_rows; //dimension of one edge
+    double map_size_meters = (float)RPLidar::DISTANCE_NO_DETECTION_MM / 1000.0f;
+    unsigned random_seed = 43;
+
+    RMHC_SLAM* slam = new RMHC_SLAM(*laser, 
+        map_size_pixels,
+        map_size_meters, 
+        random_seed);
+
+    slam->hole_width_mm = RPLidar::WALL_THICKNESS;
+
+    int scan_mm[LidarRetSet::NUM_LIDAR_RETURNS];
+
+    unsigned char* map_pixels = new unsigned char[map_size_pixels * map_size_pixels];
+
+    if(map_pixels == NULL)
+    {
+        printf("failed to allocate the map pixels for slam.\n");
+        return NULL;
+    }
+
+    Profiler profile("SLAM", 100);
+
+    while(programRunning)
+    {
+        //wait for a new data
+        while(!g_LidarInput.Read(lidarReturn) || last_image == lidarReturn.tick)
+        {
+            usleep(10000);
+        }
+
+        //keep track of last image read
+        last_image = lidarReturn.tick;
+
+        if(LidarRetSet::NUM_LIDAR_RETURNS != lidarReturn.m_Set.m_Count)
+        {
+            printf("wrong dimension for lidar scan_mm\n");
+            break;
+        }
+
+        //copy mm scan dist values into scan_mm
+        //printf("Lidar return. %d points.\n", lidarReturn.m_Set.m_Count);
+
+        //start with a clean buffer each time.
+        memset(scan_mm, 0, sizeof(scan_mm));
+
+        //We write the lidar return in the scan_mm buffer to send to the SLAM.
+        //The scan_mm buffer assumes a return on every half angle. But our device
+        //likes to return arbitrary angles for each return. So we will map each
+        //return to it's half angle slot in the buffer.
+        for(int iRec = 0; iRec < lidarReturn.m_Set.m_Count; iRec++)
+        {
+            const LidarRet& ret = lidarReturn.m_Set.m_Returns[iRec];
+
+            int dist_mm = ret.GetDistance();
+
+            //printf("i: %d d: %0.2f th: %0.2f\n", iRec, ret.GetDistance(), ret.GetAngle());
+
+            //calculate a half angle integer. We use this as the offset
+            //into the scan buffer to store the disance return.
+            int iHalfAngle = (ret.GetAngle() * 2.0f) - 1;
+
+            //bounds check and then write our distance into the scan buffer
+            if(iHalfAngle >= 0 && iHalfAngle < (LidarRetSet::NUM_LIDAR_RETURNS))
+                scan_mm[iHalfAngle] = dist_mm;
+        }
+
+        //printf("\n\n");
+
+        //Do a pose match with previous maps and determine our location/orientation
+        //This can take velocity data if we have it at some point.
+        slam->update(scan_mm);
+
+        //Get our pose information
+        Position& p = slam->getpos();
+
+        //our predicted position. Begins in the center of the map. with zero theta.
+        if(bShowSlamPos)
+            printf("slam pos- x: %f, y: %f, theta: %f\n", p.x_mm, p.y_mm, p.theta_degrees);
+
+        //get a map generated from matching returns w previous returns.
+        slam->getmap(map_pixels);
+
+        //when we have slam, it takes over lidar web image
+        bSlamToLidarImage = true;
+
+        //write this map over the lidar image
+        unsigned char* pSLAMMap = map_pixels;
+        Pixel* pLidarMap = (Pixel*)lidar_image;
+        unsigned char* pSLAMMapEnd = pSLAMMap + (map_size_pixels * map_size_pixels);
+        
+        while(pSLAMMap < pSLAMMapEnd)
+        {
+            pLidarMap->r = *pSLAMMap;
+            pLidarMap->g = *pSLAMMap;
+            pLidarMap->b = *pSLAMMap;
+
+            pLidarMap++;
+            pSLAMMap++;
+        }
+        
+        //plot a red point for the robot location
+        int px = (int)(((p.x_mm / 1000.0f) / map_size_meters)  *  lidar_image_rows);
+        int py = (int)(((p.y_mm / 1000.0f) / map_size_meters)  *  lidar_image_rows);
+
+        int iPixel = ((py * lidar_image_rows) + px);
+
+        if(iPixel < (lidar_image_rows * lidar_image_rows))
+        {
+            pLidarMap = (Pixel*)lidar_image;
+            Pixel* pPos = pLidarMap + iPixel;
+
+            pPos->r = 255;
+            pPos->g = 0;
+            pPos->b = 0;
+        }
+     
+        profile.OnFrameIter();
+    }
+
+    delete[] map_pixels;
+    delete slam;
+    delete laser;
+
+    return NULL;
+
+#endif //ENABLE_BRZY_SLAM
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Process Lidar
@@ -1863,6 +2045,9 @@ int main(int argc, char** argv)
     pthread_t thread_web_lidar;
     pthread_create(&thread_web_lidar, NULL, ProcessWebLidar, &conf);
 
+    pthread_t thread_slam;
+    pthread_create(&thread_slam, NULL, ProcessSLAM, &conf);
+
     /////////////////////////////////
     // wait for worker threads to exit
 
@@ -1882,6 +2067,8 @@ int main(int argc, char** argv)
     printf("lidar update thread exited.\n");
     pthread_join(thread_web_lidar, NULL);
     printf("web lidar update thread exited.\n");
+    pthread_join(thread_slam, NULL);
+    printf("slam thread exited.\n");
     
     programExited = true;
 
