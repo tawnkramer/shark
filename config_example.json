@@ -240,8 +240,16 @@
 //should we print return values to console
 "lidar_verbose_output" : 0,
 
+
+
+//////////////////////////////////////////
+// slam settings
+
 //should we print slam position to the console
 "slam_verbose_position": 0,
+
+//should we output slam map to web. this take some small amount of resources.
+"slam_output_debug_map": 0,
 
 
 

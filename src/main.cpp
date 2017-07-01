@@ -151,6 +151,18 @@ struct LidarRecord
     uint64_t tick;
 };
 
+
+///////////////////////////////////////////////////////////////////////////////
+// SLAM estimation set with time stamp
+
+struct SLAMRecord
+{
+    double m_posX_mm;
+    double m_posY_mm;
+    double m_theta_deg;
+    uint64_t tick;
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 //A lock free ring buffer that allows a consumer and producer to write
 //and read at once from different threads. The reader gets the latest record written.
@@ -242,6 +254,9 @@ RingBuffer<ImageRecord, 3> g_Images;
 
 //Our ring buffer of lidar
 RingBuffer<LidarRecord, 3> g_LidarInput;
+
+//SLAM position output
+RingBuffer<SLAMRecord, 3> g_SLAMOutput;
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -1714,7 +1729,7 @@ class RPLidar : public Laser
         SCAN_RATE_HZ = 10,  //data rate depends on motor speed. this is about right for default.
         DETECTION_ANGLE_DEGREES = 360, //Some lidars scan just a portion, this scans 360
         DISTANCE_NO_DETECTION_MM = 10000, //6M according to RobotShop. Seems longer.
-        WALL_THICKNESS = 200, //Affects the width of returns when making the map.
+        WALL_THICKNESS = 600, //Affects the width of returns when making the map.
     };
 
     RPLidar(int detection_margin = 0, float offset_mm = 0) : 
@@ -1740,12 +1755,17 @@ void* ProcessSLAM(void * args)
     uint64_t last_image = 0;
     float offsetCarCenterMM = 100.0f;
 
-    bool bShowSlamPos = conf->GetInt("slam_verbose_position", 1);
+    bool bShowSlamPos = conf->GetInt("slam_verbose_position", 0);
+    bool bOutputDebugMap = conf->GetInt("slam_output_debug_map", 0);
 
     RPLidar* laser = new RPLidar(0, offsetCarCenterMM);
-    int map_size_pixels = lidar_image_rows; //dimension of one edge
-    double map_size_meters = (float)RPLidar::DISTANCE_NO_DETECTION_MM / 1000.0f;
+    double map_size_meters = 20.0;
     unsigned random_seed = 43;
+
+    int pixel_per_cm = map_size_meters * 100;
+
+    //dimension of map along one edge
+    int map_size_pixels = 512 * 8;
 
     RMHC_SLAM* slam = new RMHC_SLAM(*laser, 
         map_size_pixels,
@@ -1823,41 +1843,65 @@ void* ProcessSLAM(void * args)
         if(bShowSlamPos)
             printf("slam pos- x: %f, y: %f, theta: %f\n", p.x_mm, p.y_mm, p.theta_degrees);
 
-        //get a map generated from matching returns w previous returns.
-        slam->getmap(map_pixels);
-
-        //when we have slam, it takes over lidar web image
-        bSlamToLidarImage = true;
-
-        //write this map over the lidar image
-        unsigned char* pSLAMMap = map_pixels;
-        Pixel* pLidarMap = (Pixel*)lidar_image;
-        unsigned char* pSLAMMapEnd = pSLAMMap + (map_size_pixels * map_size_pixels);
         
-        while(pSLAMMap < pSLAMMapEnd)
+        SLAMRecord sr;
+        sr.m_posX_mm = p.x_mm;
+        sr.m_posY_mm = p.y_mm;
+        sr.m_theta_deg = p.theta_degrees;
+        sr.tick = clock();
+
+        //write to the output array
+        g_SLAMOutput.Write(sr);
+
+        if(bOutputDebugMap)
         {
-            pLidarMap->r = *pSLAMMap;
-            pLidarMap->g = *pSLAMMap;
-            pLidarMap->b = *pSLAMMap;
+            //get a map generated from matching returns w previous returns.
+            slam->getmap(map_pixels);
 
-            pLidarMap++;
-            pSLAMMap++;
-        }
-        
-        //plot a red point for the robot location
-        int px = (int)(((p.x_mm / 1000.0f) / map_size_meters)  *  lidar_image_rows);
-        int py = (int)(((p.y_mm / 1000.0f) / map_size_meters)  *  lidar_image_rows);
+            //when we have slam, it takes over lidar web image
+            bSlamToLidarImage = true;
 
-        int iPixel = ((py * lidar_image_rows) + px);
+            //write this map over the lidar image
+            unsigned char* pSLAMMap = map_pixels;
+            Pixel* pLidarMap = (Pixel*)lidar_image;
+            Pixel* pLidarMapEnd = pLidarMap + (lidar_image_rows * lidar_image_cols);
+            unsigned char* pSLAMMapEnd = pSLAMMap + (map_size_pixels * map_size_pixels);
+            int stride_row_slam_map = map_size_pixels / lidar_image_rows;
+            int stride_col_slam_map = map_size_pixels;
+            int stride_col = (map_size_pixels / lidar_image_cols) - 1;
+            int iRow = 0;
+            while(pSLAMMap < pSLAMMapEnd && pLidarMap < pLidarMapEnd)
+            {
+                pLidarMap->r = *pSLAMMap;
+                pLidarMap->g = *pSLAMMap;
+                pLidarMap->b = *pSLAMMap;
 
-        if(iPixel < (lidar_image_rows * lidar_image_rows))
-        {
-            pLidarMap = (Pixel*)lidar_image;
-            Pixel* pPos = pLidarMap + iPixel;
+                pLidarMap++;
+                pSLAMMap = pSLAMMap + stride_row_slam_map;
+                iRow++;
 
-            pPos->r = 255;
-            pPos->g = 0;
-            pPos->b = 0;
+                if(iRow == lidar_image_rows - 1)
+                {
+                    pSLAMMap = pSLAMMap + stride_col_slam_map * stride_col;
+                    iRow = 0;
+                }
+            }
+            
+            //plot a red point for the robot location
+            int px = (int)(((p.x_mm / 1000.0f) / map_size_meters)  *  lidar_image_rows);
+            int py = (int)(((p.y_mm / 1000.0f) / map_size_meters)  *  lidar_image_rows);
+
+            int iPixel = ((py * lidar_image_rows) + px);
+
+            if(iPixel < (lidar_image_rows * lidar_image_cols))
+            {
+                pLidarMap = (Pixel*)lidar_image;
+                Pixel* pPos = pLidarMap + iPixel;
+
+                pPos->r = 255;
+                pPos->g = 0;
+                pPos->b = 0;
+            }
         }
      
         profile.OnFrameIter();
