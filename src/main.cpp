@@ -19,6 +19,8 @@
 #include "json.h"
 #include "config.h"
 #include "lidar.h"
+#include "tmath.h"
+#include "path.h"
 
 #define TJE_IMPLEMENTATION
 #include "tiny_jpeg/tiny_jpeg.h"
@@ -27,8 +29,6 @@
 #include "raspicam/raspicam.h"
 using namespace raspicam;
 #endif
-
-const float PI = 3.14159265358979323846;
 
 //this can be disabled to run on linux platforms w no i2c for testing camera, prediction code.
 #define ENABLE_CAR 1
@@ -40,6 +40,8 @@ const float PI = 3.14159265358979323846;
 #define MAX_MESSAGE_LEN 1024
 #define MAX_STR_LEN 1024
 #define MAX_PATH_LEN 1024
+
+using namespace TMath;
 
 //Program run state
 volatile bool programRunning = false;
@@ -501,6 +503,14 @@ void* ProcessJoyStick(void* args)
 
 struct Pixel
 {
+    unsigned char r, g, b;
+};
+
+struct Color8
+{
+    Color8(){}
+    Color8(int _r, int _g, int _b) : r(_r), g(_g), b(_b) {}
+
     unsigned char r, g, b;
 };
 
@@ -1645,12 +1655,12 @@ void SaveLidarToImage(const LidarRecord& lidarReturn, const char* imagefilename)
     const int height = 512;
     const int num_components = 3;
     const int max_image_len = width * height * num_components;
-    unsigned char lidar_image[max_image_len];
+    unsigned char _image[max_image_len];
 
     //Transform lidar return into an image
-    LidarReturnToImage(lidarReturn, lidar_image, width, height, num_components);
+    LidarReturnToImage(lidarReturn, _image, width, height, num_components);
 
-    if ( !tje_encode_to_file(imagefilename, width, height, num_components, lidar_image) ) 
+    if ( !tje_encode_to_file(imagefilename, width, height, num_components, _image) ) 
     {
         fprintf(stderr, "Could not write JPEG\n");
     }
@@ -1664,6 +1674,8 @@ const int lidar_image_cols = 512;//conf->GetInt("col", 160);
 const int lidar_image_ch = 3;//conf->GetInt("ch", 3);
 const int lidar_image_max_image_len = lidar_image_rows * lidar_image_cols * lidar_image_ch;
 unsigned char lidar_image[lidar_image_max_image_len];
+
+Path* g_pPID_Path = NULL;
 
 //are we hijacking the lidar web image to write our SLAM map..
 bool bSlamToLidarImage = false;
@@ -1742,6 +1754,26 @@ class RPLidar : public Laser
 };
 
 #endif
+
+//x and y in mm
+void plotToLidarDebugMap(double x_mm, double y_mm, Color8 col, double map_size_meters)
+{
+    //plot a red point for the robot location
+    int px = (int)(((x_mm / 1000.0f) / map_size_meters)  *  lidar_image_cols);
+    int py = (int)(((y_mm / 1000.0f) / map_size_meters)  *  lidar_image_rows);
+
+    int iPixel = ((py * lidar_image_rows) + px);
+
+    if(iPixel < (lidar_image_rows * lidar_image_cols))
+    {
+        Pixel* pLidarMap = (Pixel*)lidar_image;
+        Pixel* pPos = pLidarMap + iPixel;
+
+        pPos->r = col.r;
+        pPos->g = col.g;
+        pPos->b = col.b;
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Process Lidar to product map - SLAM
@@ -1887,20 +1919,30 @@ void* ProcessSLAM(void * args)
                 }
             }
             
-            //plot a red point for the robot location
-            int px = (int)(((p.x_mm / 1000.0f) / map_size_meters)  *  lidar_image_rows);
-            int py = (int)(((p.y_mm / 1000.0f) / map_size_meters)  *  lidar_image_rows);
+            plotToLidarDebugMap(p.x_mm, p.y_mm, Color8(255, 0, 0), map_size_meters);
 
-            int iPixel = ((py * lidar_image_rows) + px);
-
-            if(iPixel < (lidar_image_rows * lidar_image_cols))
+            //draw path.
+            if(g_pPID_Path != NULL && g_pPID_Path->m_nodes.size() > 1)
             {
-                pLidarMap = (Pixel*)lidar_image;
-                Pixel* pPos = pLidarMap + iPixel;
+                Color8 pathColor(0, 255, 0);
 
-                pPos->r = 255;
-                pPos->g = 0;
-                pPos->b = 0;
+                printf("drawing path.\n");
+                int numNodes = (int)g_pPID_Path->m_nodes.size();
+
+                for(int iP = 0; iP < numNodes - 1; iP++)
+                {
+                    PathNode& a = g_pPID_Path->m_nodes[iP];
+                    PathNode& b = g_pPID_Path->m_nodes[iP + 1];
+                    Vector2 pt = a.pos;
+                    int steps = 1;
+                    Vector2 delta = (b.pos - a.pos) * (1.0f / steps);
+                    
+                    for(int iStep = 0; iStep < steps; iStep++)
+                    {
+                        plotToLidarDebugMap(pt.x, pt.y, pathColor, map_size_meters);
+                        pt = pt + delta;
+                    }
+                }
             }
         }
      
@@ -1963,6 +2005,210 @@ void* ProcessLidarUpdate(void * args)
     }
 
     ShutdownLidar();
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
+//Main thread to process PID control
+
+void* ProcessPID(void * args)
+{
+    Config* conf = (Config*)args;
+
+    //set debug flag to see all output from js echoed to console
+    bool bShowFPS = conf->GetInt("debug_display_fps", 1);
+
+    Profiler profile("PID", 100);
+    AxisRecord axis;
+    ButtonRecord button;
+
+    Path path;
+    PIDController controller;
+    
+    controller.SetPath(&path);
+    controller.SetVals(60.0f, 60.0f, 0.01f);
+
+    g_pPID_Path = &path;
+
+    const int js_button_toggle_record_path = conf->GetInt("js_button_toggle_record_path", 13);
+    const int js_button_toggle_driving = conf->GetInt("js_button_toggle_driving", 15);
+
+    enum PIDMode
+    {
+        eNoPath,
+        eRecordingPath,
+        ePathRecorded,
+        eDrive,
+    };
+
+    PIDMode mode = eNoPath;
+
+    uint64_t last_button = 0;
+    uint64_t last_slam = 0;
+    float threshNewNode = 100.0f;
+    float maxThrottle = 0.5f;
+
+    Vector2 lastPos;
+
+    while(programRunning)
+    {
+        // Restrict rate
+        usleep(10000);
+
+        if(mode == eNoPath)
+        {
+            //look for a key presse to start recording.
+            if(g_ButtonInput.Read(button) && button.tick != last_button)
+            {
+                //keep track of last button read
+                last_button = button.tick;
+
+                //12=Triangle on the PS3 sixaxis controller
+                if(button.button == js_button_toggle_record_path && button.state == 1)
+                {
+                    mode = eRecordingPath;
+                    printf("recording path\n");
+                }
+            }
+        }
+
+        if(mode == eRecordingPath)
+        {
+            //blink when we are recording.
+            blink_led_status(0.5f);
+
+            SLAMRecord rec;
+
+            if(g_SLAMOutput.Read(rec) && rec.tick != last_slam)
+            {
+                if(last_slam == 0)
+                {
+                    PathNode n;
+                    n.pos = Vector2(rec.m_posX_mm, rec.m_posY_mm);
+                    path.AddNode(n);
+                    lastPos = n.pos;
+
+                    printf("recording start node\n");
+                }
+                else
+                {
+                    PathNode n;
+                    n.pos = Vector2(rec.m_posX_mm, rec.m_posY_mm);
+                    
+                    if((n.pos - lastPos).Mag() > threshNewNode)
+                    {
+                        path.AddNode(n);
+                        lastPos = n.pos;
+
+                        printf("recording node %d, %0.2f, %0.2f \n", (int)path.m_nodes.size(), n.pos.x, n.pos.y);
+                    }
+                }
+
+                last_slam = rec.tick;
+            }
+
+            //look for a key presse to start recording.
+            if(g_ButtonInput.Read(button) && button.tick != last_button)
+            {
+                //keep track of last button read
+                last_button = button.tick;
+
+                //12=Triangle on the PS3 sixaxis controller
+                if(button.button == js_button_toggle_record_path && button.state == 1)
+                {
+                    mode = ePathRecorded;
+                }
+            }
+        }
+
+        if(mode == ePathRecorded)
+        {
+            //blink when we are ready.
+            blink_led_status(2.0f);
+
+            //look for a key presse to start driving.
+            if(g_ButtonInput.Read(button) && button.tick != last_button)
+            {
+                //keep track of last button read
+                last_button = button.tick;
+
+                //12=Triangle on the PS3 sixaxis controller
+                if(button.button == js_button_toggle_driving && button.state == 1)
+                {
+                    SLAMRecord rec;
+
+                    printf("start PID driving.\n");
+
+                    if(g_SLAMOutput.Read(rec))
+                    {
+                        Vector2 pos(rec.m_posX_mm, rec.m_posY_mm);
+                    
+                        controller.Start(pos);
+
+                        mode = eDrive;
+                    }
+                }
+
+                //12=Triangle on the PS3 sixaxis controller
+                if(button.button == js_button_toggle_record_path && button.state == 1)
+                {
+                    printf("erase PID path.\n");
+                    path.Reset();
+                    mode = eNoPath;
+                }
+            }
+        }
+
+        if(mode == eDrive)
+        {
+            SLAMRecord rec;
+
+            if(g_SLAMOutput.Read(rec) && rec.tick != last_slam)
+            {
+                last_slam = rec.tick;
+
+                Vector2 pos(rec.m_posX_mm, rec.m_posY_mm);
+            
+                float steering, throttle;
+
+                controller.Update(pos, steering, throttle);
+                
+                printf("pid: steer: %f\n", steering);
+
+                {
+                    axis.steer = steering;
+                    axis.throttle = throttle * maxThrottle;
+
+                    //blink when we are active.
+                    blink_led_status(0.5f);
+                    
+                    axis.tick = clock();
+
+                    //post prediction to our ring buffer
+                    g_PredInput.Write(axis);
+                }
+            }
+            
+            //look for a key presse to stop driving.
+            if(g_ButtonInput.Read(button) && button.tick != last_button)
+            {
+                //keep track of last button read
+                last_button = button.tick;
+
+                //12=Triangle on the PS3 sixaxis controller
+                if(button.button == js_button_toggle_driving && button.state == 1)
+                {
+                    mode = ePathRecorded;
+
+                    printf("stop PID driving.\n");
+                }
+            }
+        }
+
+        if(bShowFPS)
+            profile.OnFrameIter();
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -2092,6 +2338,9 @@ int main(int argc, char** argv)
     pthread_t thread_slam;
     pthread_create(&thread_slam, NULL, ProcessSLAM, &conf);
 
+    pthread_t thread_pid;
+    pthread_create(&thread_pid, NULL, ProcessPID, &conf);
+
     /////////////////////////////////
     // wait for worker threads to exit
 
@@ -2113,6 +2362,8 @@ int main(int argc, char** argv)
     printf("web lidar update thread exited.\n");
     pthread_join(thread_slam, NULL);
     printf("slam thread exited.\n");
+    pthread_join(thread_pid, NULL);
+    printf("pid thread exited.\n");
     
     programExited = true;
 

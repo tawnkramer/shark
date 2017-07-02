@@ -15,8 +15,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCPU_ONLY -std=c++11 -fopenmp -funsafe-
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fopenmp")
 
 #enable for debug builds.
-#set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Release)
 
 find_library(LIB_ZMQ zmq)
 find_library(LIB_CZMQ czmq)
@@ -48,7 +48,7 @@ find_library(LIB_BREEZY_SLAM breezyslam)
 include_directories("${PROJECT_BINARY_DIR}" "src" "contrib" ${PG_SDK_ROOT})
 
 #our executable
-add_executable(shark src/main.cpp src/json.cpp src/config.cpp src/pointgrey.cpp src/lidar.cpp contrib/joystick/joystick.cc contrib/jsmn/jsmn.c contrib/v4l_helper/capture_raw_frames.c)
+add_executable(shark src/main.cpp src/json.cpp src/config.cpp src/pointgrey.cpp src/lidar.cpp src/path.cpp src/tmath.cpp contrib/joystick/joystick.cc contrib/jsmn/jsmn.c contrib/v4l_helper/capture_raw_frames.c)
 
 #link libraries
 TARGET_LINK_LIBRARIES(shark zmq czmq pthread)
