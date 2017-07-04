@@ -48,6 +48,18 @@ namespace TMath
 		b = temp;
 	}
 
+	template <class T>
+	T clamp(T& a, const T& lo, const T& hi)
+	{
+		if( a < lo)
+			return lo;
+
+		if(a > hi)
+			return hi;
+
+		return a;
+	}
+
 	class Vector2
 	{
 	public:
@@ -69,11 +81,12 @@ namespace TMath
 		Vector2&	operator/=(const float scalar);
 		bool		operator==(const Vector2& v) const;
 		float	operator[](const int i) const;
-		float	Dot(const Vector2& v);
+		float	Dot(const Vector2& v) const;
 		float	Normalize();
 		float	Mag() const;
 		float	Mag2() const;
 		float	Dist(const Vector2& v) const;
+		float	Cross(const Vector2& v) const;
 		float	RadAngleBetween(const Vector2& v) const;
 		float	DegAngleBetween(const Vector2& v) const;
 

@@ -254,6 +254,13 @@
 
 
 //////////////////////////////////////////
+// pid settings
+
+"pid_Kp" : 20.0,
+"pid_Ki" : 0.001,
+"pid_Kd" : 5.0,
+
+//////////////////////////////////////////
 // debug settings
 
 //selectively disable control loops

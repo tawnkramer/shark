@@ -1378,7 +1378,7 @@ void* ProcessRobot(void * args)
                 predSteer = 60;
 
                 float throttle = (float)pred.throttle / axisRange;
-                //printf("pred_throttle: %f\n", throttle);
+                printf("pred_throttle: %f\n", throttle);
                 car.setThrottle(throttle);
 
                 //zero throttle means user can interact
@@ -1741,7 +1741,7 @@ class RPLidar : public Laser
         SCAN_RATE_HZ = 10,  //data rate depends on motor speed. this is about right for default.
         DETECTION_ANGLE_DEGREES = 360, //Some lidars scan just a portion, this scans 360
         DISTANCE_NO_DETECTION_MM = 10000, //6M according to RobotShop. Seems longer.
-        WALL_THICKNESS = 600, //Affects the width of returns when making the map.
+        WALL_THICKNESS = 300, //Affects the width of returns when making the map.
     };
 
     RPLidar(int detection_margin = 0, float offset_mm = 0) : 
@@ -1926,7 +1926,7 @@ void* ProcessSLAM(void * args)
             {
                 Color8 pathColor(0, 255, 0);
 
-                printf("drawing path.\n");
+                //printf("drawing path.\n");
                 int numNodes = (int)g_pPID_Path->m_nodes.size();
 
                 for(int iP = 0; iP < numNodes - 1; iP++)
@@ -1934,7 +1934,7 @@ void* ProcessSLAM(void * args)
                     PathNode& a = g_pPID_Path->m_nodes[iP];
                     PathNode& b = g_pPID_Path->m_nodes[iP + 1];
                     Vector2 pt = a.pos;
-                    int steps = 1;
+                    int steps = 2;
                     Vector2 delta = (b.pos - a.pos) * (1.0f / steps);
                     
                     for(int iStep = 0; iStep < steps; iStep++)
@@ -2018,6 +2018,9 @@ void* ProcessPID(void * args)
 
     //set debug flag to see all output from js echoed to console
     bool bShowFPS = conf->GetInt("debug_display_fps", 1);
+    
+    //scale inputs from joystick on this axis range
+    float axisRange = conf->GetFloat("js_axis_scale", 32767.0f);
 
     Profiler profile("PID", 100);
     AxisRecord axis;
@@ -2027,7 +2030,13 @@ void* ProcessPID(void * args)
     PIDController controller;
     
     controller.SetPath(&path);
-    controller.SetVals(60.0f, 60.0f, 0.01f);
+
+    //read PID constants from config
+    float Kp = conf->GetFloat("pid_Kp", 1.0);
+    float Ki = conf->GetFloat("pid_Ki", 0.00001);
+    float Kd = conf->GetFloat("pid_Kd", 1.0);
+
+    controller.SetVals(Kp, Ki, Kd);
 
     g_pPID_Path = &path;
 
@@ -2118,6 +2127,7 @@ void* ProcessPID(void * args)
                 if(button.button == js_button_toggle_record_path && button.state == 1)
                 {
                     mode = ePathRecorded;
+                    printf("finished recording path.\n");
                 }
             }
         }
@@ -2173,12 +2183,19 @@ void* ProcessPID(void * args)
                 float steering, throttle;
 
                 controller.Update(pos, steering, throttle);
+
+                //it's not really radian or deg, just left or right
+                //steering = TMath::RadToDeg(steering);
                 
-                printf("pid: steer: %f\n", steering);
+                printf("pid: steer: %0.3f throttle: %0.3f\n", steering, throttle);
 
                 {
-                    axis.steer = steering;
-                    axis.throttle = throttle * maxThrottle;
+                    float maxSteeringAngle = 25.0f;
+                    float throttleScale = 0.3f;
+                    steering = clamp(steering, -maxSteeringAngle, maxSteeringAngle);
+
+                    axis.steer = (steering / maxSteeringAngle) * axisRange;
+                    axis.throttle = (throttle * throttleScale) * axisRange;
 
                     //blink when we are active.
                     blink_led_status(0.5f);

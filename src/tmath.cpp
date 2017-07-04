@@ -125,9 +125,15 @@ float	Vector2::operator[](const int i) const
 	return (i == 0 ? x : y);
 }
 
-float	Vector2::Dot(const Vector2& v)
+float	Vector2::Dot(const Vector2& v) const
 {
 	return (x * v.x + y * v.y);
+}
+
+//the sign tells you which side the other vector lies
+float	Vector2::Cross(const Vector2& v) const
+{
+	return (x * v.y - y * v.x);	
 }
 
 float	Vector2::Normalize()
@@ -1553,19 +1559,12 @@ Vector2 LineSeg2d::ClosestVectorTo(const Vector2& point, LineSegResult& offEnd)
 	Vector2 deltaPoint = m_point - point;
 	float dot = deltaPoint.Dot(m_ray);
 
-	Vector2 deltaPointEnd = m_end - point;
-	Vector2 negRay = m_ray * -1;
-	float dotEnd = deltaPointEnd.Dot(negRay);
-
 	if (dot < 0.0f)
 		offEnd = eOffEndA;
-	else if (dotEnd < 0.0f)
+	else if (dot > 1.0f)
 		offEnd = eOffEndB;
 	else
 		offEnd = eOnLine;
-
-	if(offEnd != eOnLine)
-		return point;
 
 	return (m_ray * dot) - deltaPoint;
 }
