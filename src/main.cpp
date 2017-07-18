@@ -1245,7 +1245,7 @@ void* ProcessPWMDebug(void * args)
     int high = conf->GetInt("debug_pwm_hi", 600);
     int middle = conf->GetInt("debug_pwm_mid", 400);
     int low = conf->GetInt("debug_pwm_lo", 200);
-    int dv = 10;
+    int dv = conf->GetInt("debug_pwm_step", 10);
     int key;
     int showHelp = 1;
     int value = middle;
@@ -1286,6 +1286,7 @@ void* ProcessPWMDebug(void * args)
                 break;
 
             case 117:
+            case 65:
                 value += dv;
                 if (value > high)
                     value = high;
@@ -1293,6 +1294,7 @@ void* ProcessPWMDebug(void * args)
                 break;
 
             case 100:
+            case 66:
                 value -= dv;
                 if (value < low)
                     value = low;
@@ -1373,6 +1375,7 @@ void* ProcessRobot(void * args)
                 lastPred = pred.tick;
 
                 float steering = (float)pred.steer / axisRange;
+                printf("pred_steering: %f\n", steering);
                 car.setSteering(steering);
 
                 predSteer = 60;
@@ -1550,7 +1553,13 @@ void* ProcessKerasPredictions(void * args)
 
 void* ProcessWebUpdate(void * args)
 {
-    Config* conf = (Config*)args;  
+    Config* conf = (Config*)args;
+
+    bool bVerboseWeb = conf->GetInt("debug_test_web", 0);
+
+    if(bVerboseWeb)
+        printf("verbose web integration messages enabled.\n");
+
     ImageRecord image;
     uint64_t last_image = 0;
     int web_img_port = conf->GetInt("web_image_port", 9191);
@@ -1574,18 +1583,31 @@ void* ProcessWebUpdate(void * args)
         //this just blocks until it gets a request.
         int count = zmq_recv (socket, buffer, 1024, 0);
 
+        if(bVerboseWeb)
+            printf("got web request for image\n");
+
         //wait for a new image. not likely very long, unless
         //camera is down.
         while(!g_Images.Read(image))
         {
             usleep(10000);
+
+            if(bVerboseWeb)
+                printf("web request waiting for image\n");
+
         }
 
         //keep track of last image read
         last_image = image.tick;
 
+        if(bVerboseWeb)
+            printf("web request sending image\n");
+
         //send image to web server
         send_message(socket, image.image, max_image_len);
+
+        if(bVerboseWeb)
+            printf("web request sent image\n");
     }
 }
 
@@ -1782,6 +1804,8 @@ void* ProcessSLAM(void * args)
 {
 #if ENABLE_BRZY_SLAM
 
+//https://github.com/simondlevy/BreezySLAM
+
     Config* conf = (Config*)args;  
     LidarRecord lidarReturn;
     uint64_t last_image = 0;
@@ -1803,6 +1827,8 @@ void* ProcessSLAM(void * args)
         map_size_pixels,
         map_size_meters, 
         random_seed);
+
+    Velocities vel;
 
     slam->hole_width_mm = RPLidar::WALL_THICKNESS;
 
@@ -1866,7 +1892,7 @@ void* ProcessSLAM(void * args)
 
         //Do a pose match with previous maps and determine our location/orientation
         //This can take velocity data if we have it at some point.
-        slam->update(scan_mm);
+        slam->update(scan_mm, vel);
 
         //Get our pose information
         Position& p = slam->getpos();
@@ -1987,6 +2013,15 @@ void process_lidar_return(const LidarRetSet *p, void* userData)
 void* ProcessLidarUpdate(void * args)
 {
     Config* conf = (Config*)args;
+
+    //Disable lidar. Possibly to save battery or debug.
+    bool bEnableLidar = conf->GetInt("lidar_enabled", 1) == 1;
+
+    if(!bEnableLidar)
+    {
+        printf("Lidar disabled in config file.\n");
+        return NULL;
+    }
 
     //set debug flag to see all output from js echoed to console
     bool bShowFPS = conf->GetInt("debug_display_fps", 1);

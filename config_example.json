@@ -174,6 +174,9 @@
 //port for web lidar feed
 "web_lidar_port": 9192,
 
+//which model do we train by default. use a path relative to the shark/web dir where we are running
+"web_rel_default_model": "../models/test",
+
 //////////////////////////////////////////
 // ec2 settings
 
@@ -229,10 +232,15 @@
 //Of all the images, what fraction are augmented. command line option can override.
 "training_default_aug_percent": 0.5,
 
-
+//which model to load for prediction, and also training, as default model
+"predict_default_model" : "./models/test",
 
 //////////////////////////////////////////
 // lidar settings
+
+//switch to turn lidar processing on and off. sometimes, even when installed,
+//we may want it off to save bettery when not using it.
+"lidar_enabled": 1,
 
 //device file to open for lidar input
 "lidar_dev_file" : "/dev/ttyUSB0",
@@ -279,6 +287,9 @@
 
 //when 1, output all joystick inputs to console.
 "debug_test_js": 0,
+
+//when 1, output all web image status to console.
+"debug_test_web": 0,
 
 /////////////////////////////////////
 // When calibrating the inputs for pwm, use this these flags to help arrive at the proper

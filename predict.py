@@ -111,7 +111,7 @@ def go(model_path, pred_address, pred_control_address):
                 (steering, throttle)
 
             socket.send(prediction)
-            #print ('prediction', prediction)
+            print ('prediction', prediction)
             if num_pred == 0:
                 num_pred += 1
                 start = time.time()

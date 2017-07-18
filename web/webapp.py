@@ -5,6 +5,7 @@ This creates a web service using cherrypy to help manage the robot
 This is designed to run on the robot
 Author: Tawn Kramer
 '''
+from __future__ import print_function
 import os
 import sys
 import time
@@ -40,7 +41,7 @@ def img_to_binary(img):
 
 class Proc():
     def __init__(self, command_plus_args, shell=False):
-        print 'launching', command_plus_args
+        print('launching', command_plus_args)
         self.proc = Popen(command_plus_args, shell=shell, stdout=PIPE)
 
     def get_output(self, output_arr):
@@ -72,16 +73,20 @@ class WebSite(object):
         #led_status.blink(conf.status_pin, n_times=3, delay=0.5)
         self.pred_control_address = ('127.0.0.1', conf.keras_predict_server_control_port)
         self.last_frame = Image.open('./img/shark.jpg')
-        self.model_file = "../models/drive"
+        self.model_file = conf.web_rel_default_model
         self.model = None
         self.iImage = 0
-        self.train_epochs = 50
+        self.train_epochs = conf.training_default_epochs
         self.set_ec2_train_defaults()
         self.sync_remote_proc = None
         self.sync_local_proc = None
         self.sync_proc_log = []
-        #you can also target a non aws server.
-        #self.set_detalt_alter_server()
+
+        if conf.debug_test_web:
+            print("verbose debug message enabled.")
+
+        #target local by default
+        self.target_local()
         
     def set_default_alter_server(self):
         self.aws_host_username = conf.alt_train_user
@@ -112,7 +117,7 @@ class WebSite(object):
         self.aws_host_ip = "localhost"
         self.pem_file = None
         self.source_command = "ls"
-        raise cherrypy.HTTPRedirect("/manage_ec2")
+        #raise cherrypy.HTTPRedirect("/manage_ec2")
     target_local.exposed = True
 
     def get_css(self):
@@ -295,14 +300,20 @@ class WebSite(object):
             context = zmq.Context()
             socket = context.socket(zmq.REQ)
             connect_str = "tcp://127.0.0.1:%d" % conf.web_image_port
-            print "connecting to live image at:", connect_str
+            print( "connecting to live image at:", connect_str)
             socket.connect(connect_str)
             command = "hi"
             row, col, ch = conf.row, conf.col, conf.ch
             font = ImageFont.truetype("./static/fonts/BADABB__.TTF", 16)
             while True:
+                if conf.debug_test_web:
+                    print("sending request for image")
                 socket.send(command)
                 img_str = socket.recv()
+                
+                if conf.debug_test_web:
+                    print("got image data")
+                
                 lin_arr = np.fromstring(img_str, dtype=np.uint8)
                 img_arr = lin_arr.reshape(row, col, ch)
                 img = Image.fromarray(img_arr, "RGB")
@@ -347,7 +358,7 @@ class WebSite(object):
             context = zmq.Context()
             socket = context.socket(zmq.REQ)
             connect_str = "tcp://127.0.0.1:%d" % conf.web_lidar_port
-            print "connecting to live image at:", connect_str
+            print ("connecting to live image at:", connect_str)
             socket.connect(connect_str)
             command = "hi"
             row, col, ch = 512, 512, 3
@@ -727,7 +738,7 @@ class WebSite(object):
     set_epochs.exposed = True
 
     def exec_command_via_shell_script(self, command):
-        print "command: ", command
+        print("command: ", command)
         cmd_filename = "../scripts/command"
         command_file = open(cmd_filename, "wt")
         command_file.write(command)
@@ -764,6 +775,10 @@ class WebSite(object):
 
         #copy all the training python source
         command = "scp ../*.py %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
+        commands.append(command)
+
+        #copy config.json
+        command = "scp ../config.json %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
         commands.append(command)
 
         command = "scp -r shadows %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
@@ -902,22 +917,34 @@ class WebSite(object):
             commands = []
             path, model_name = os.path.split(self.model_file)
 
-            #kick off training
-            command = "ssh -oStrictHostKeyChecking=no %s@%s '%s; cd shark; python train.py %s --epochs %d;'" % (self.aws_host_username, self.aws_host_ip, self.source_command, model_name, self.train_epochs)
-            commands.append(command)
+            local = self.aws_host_ip == "localhost"
 
-            #copy result model
-            command = "scp %s@%s:~/shark/%s ../models/" % (self.aws_host_username, self.aws_host_ip, model_name)
-            commands.append(command)
+            if local:
+                #confirm training location
+                command = 'echo "training locally"'
+                commands.append(command)
 
-            #copy best result model
-            command = "scp %s@%s:~/shark/%s_best ../models/" % (self.aws_host_username, self.aws_host_ip, model_name)
-            commands.append(command)
+                #kick off training
+                command = "cd ..;python train.py ./models/%s --epochs %d;" % ( model_name, self.train_epochs)
+                commands.append(command)
 
-            #expand tar
-            command = "scp %s@%s:~/shark/loss.png ./img/" % (self.aws_host_username, self.aws_host_ip)
-            commands.append(command)
-            
+                #mv training graph
+                command = "mv ../loss.png ./img/"
+                commands.append(command)
+                
+            else:
+                #kick off training
+                command = "ssh -oStrictHostKeyChecking=no %s@%s '%s; cd shark; python train.py %s --epochs %d;'" % (self.aws_host_username, self.aws_host_ip, self.source_command, model_name, self.train_epochs)
+                commands.append(command)
+
+                #copy result model
+                command = "scp %s@%s:~/shark/%s ../models/" % (self.aws_host_username, self.aws_host_ip, model_name)
+                commands.append(command)
+
+                #copy training graph
+                command = "scp %s@%s:~/shark/loss.png ./img/" % (self.aws_host_username, self.aws_host_ip)
+                commands.append(command)
+                
             yield(self.stream_page(title="Shark Training"))
             yield('<pre>')
             for com in commands:                
@@ -967,7 +994,7 @@ if __name__ == "__main__":
         }
     }
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    print "current_dir ",current_dir
+    print("current_dir ",current_dir)
     application_conf = {
         '/': {'tools.staticdir.root': current_dir},
         '/favicon.ico': {

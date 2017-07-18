@@ -55,7 +55,7 @@ def go(model, img_pub_address, pred_address, pred_control_address):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='shark server')
-    parser.add_argument('--model', type=str, default="./models/dash", help='model name')
+    parser.add_argument('--model', type=str, default=conf.predict_default_model, help='model name')
     args = parser.parse_args()
     
     img_pub_address = ('127.0.0.1', conf.web_image_port)
