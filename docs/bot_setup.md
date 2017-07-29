@@ -15,6 +15,21 @@ or [PS3 Eye](http://a.co/08GHjk2) or [Point Grey](http://www.ebay.com/sch/i.html
 * PS3 SixAxis controller: <http://a.co/b8OKh1V>
 * an led. any will do. <http://a.co/inmaS3e>
 
+Also supports raspberry pi camera:
+* https://www.amazon.com/SainSmart-Fish-Eye-Camera-Raspberry-Arduino/dp/B00N1YJKFS
+
+Or Point Grey cameras:
+* https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313.TR0.TRC0.H0.Xpoint+grey+usb+camera.TRS0&_nkw=point+grey+usb+camera&_sacat=0
+
+Optionally, This framework supports Jetson TX2
+* Jetson TX2: https://www.amazon.com/NVIDIA-Jetson-TX2-Development-Kit/dp/B06XPFH939
+
+And other 9685 based pwm boards:
+* 9685 PWM Board: https://www.amazon.com/SunFounder-PCA9685-Channel-Arduino-Raspberry
+
+Also RPLidar support:
+* RpLidar A2 : https://www.amazon.com/RPLIDAR-A2-The-Thinest-LIDAR/dp/B01L1T32PI
+
 ### Setup PI ###
 * install headless raspian for best performance
 
@@ -29,7 +44,7 @@ or [PS3 Eye](http://a.co/08GHjk2) or [Point Grey](http://www.ebay.com/sch/i.html
 ## Setup Status LED ###
 * connect an led to pin 23 and ground on the Adafruit Servo hat
 
-## Optional - use Jetson TX? ##
+## Optional - Jetson TX_ ##
 * instead of a Pi3, use an Nvidia Jetson TX1 or TX2
 
 ## Optional - setup RPLIDAR ###
