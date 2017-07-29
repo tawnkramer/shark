@@ -717,12 +717,18 @@ void process_image(const void *p, int size, void* userData)
     int destw = cs->dest_width;
     int desth = cs->dest_height;
 
-    //this version assumes an evenly scaled version of w and heigh
-    if((width / 2 != destw))
-        return;
+    int w_ratio = width / destw;
+    int h_ratio = height / desth;
 
-    if((height / 2 != desth))
-        return;
+    //bytes per pixel, 
+    int bpp_s = 4; //YUYV has 4, but is really two pixels
+    int bpp_d = 3; //RGB
+
+    int pixels_per_stride = 2;
+
+    //stride through pixels
+    int stride_s = bpp_s * w_ratio;
+    int stride_d = bpp_d * w_ratio * pixels_per_stride; //2 pixels at a time
 
     if(size != (width * height * d))
     {
@@ -751,7 +757,7 @@ void process_image(const void *p, int size, void* userData)
     int iRow = 0;
     int iCol = 0;
     
-    for (int i = 0, j = 0; i < width * height * 3; i+=12, j+=8) 
+    for (int i = 0, j = 0; i < width * height * 3; i+=stride_d, j+=stride_s) 
     {
         //first pixel
         y = yuyv_image[j];
@@ -819,9 +825,6 @@ void process_image(const void *p, int size, void* userData)
         }
        
     }
-
-    //Test undistort.
-    //undisort_image(dest_rgb_image, width, height);
 
     v4lImage.tick = clock();
 
