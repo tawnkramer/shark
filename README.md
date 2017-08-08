@@ -34,7 +34,7 @@ Check shark.service and sharkweb.service to run on startup.
 ## Workflow ##
 
 ### Check camera output: ###
-* Navigate to [web page](http://pi.local:8080)
+* Navigate to [web page](http://raspberrypi.local:8080)
 * Select 'robot'. You should see a live image from camera
 
 ### Logging: ###
@@ -44,7 +44,7 @@ Check shark.service and sharkweb.service to run on startup.
 * press X to disable recording
 
 ### Edit logs: ###
-* Navigate to [web page](http://pi.local:8080)
+* Navigate to [web page](http://raspberrypi.local:8080)
 * Select 'log'
 * Select 'view/edit logs'
 * observe recorded logs
@@ -59,7 +59,7 @@ Check shark.service and sharkweb.service to run on startup.
 
 ### Web EC2 Based Training: ###
 * check [docs/aws_setup.md](https://github.com/tawnkramer/shark/blob/master/docs/aws_setup.md)
-* Navigate to [web page](http://pi.local:8080)
+* Navigate to [web page](http://raspberrypi.local:8080)
 * Select 'ec2' button
 * Select 'start ec2'
 * Wait for 1 to 2 minutes and select 'check ec2' until the machine is ready.
