@@ -59,7 +59,7 @@ Also RPLidar support:
 
 ### Install Dependancies
 ```
-sudo apt-get install libzmq-dev build-essential git cmake python3 python3-dev python3-virtualenv
+sudo apt-get install libzmq-dev build-essential git cmake python3 python3-dev python3-virtualenv libv4l-dev
 ```
 
 if on a raspberry pi
@@ -77,6 +77,23 @@ git clone https://github.com/zeromq/czmq.git
 cd czmq
 mkdir build && cd build
 cmake .. && make
+sudo make install
+```
+
+if using raspicam camera
+```
+cd ~
+git clone https://github.com/cedricve/raspicam
+```
+
+when building raspicam, I had to make this hack to get better framerate.
+edit raspicam/src/private/private_impl.cpp
+* change: State.framerate            = 10;
+* to:     State.framerate            = 60;
+
+```
+cd raspicam
+make
 sudo make install
 ```
 
