@@ -33,30 +33,122 @@ Also RPLidar support:
 ### Setup PI ###
 * install headless raspian for best performance
 
+### Optional - Jetson TX_
+* instead of a Pi3, use an Nvidia Jetson TX1 or TX2
+
+### Setup a user ###
+* You can use the default pi user, but better to create one that matches whatever pc username for easier ssh
+* add user to groups:  
+        *  sudo 
+        *  video 
+        *  input 
+        *  bluetooth 
+        *  i2c 
+        *  gpio
+* use the command ```sudo usermod -a -G groupName userName``` 
+
+
 ### Setup Adafruit Servo Hat ###
 * setup ic2
+        *  enable in ```raspi-config```
 * connect servo and esc
 
-### Setup Camera ###
+### Setup Camera
 * if raspicam, enable in sudo raspi-config
 * if usb camera, create a special cable to split usb power and data
 
-## Setup Status LED ###
-* connect an led to pin 23 and ground on the Adafruit Servo hat
+### Install Dependancies
+```
+sudo apt-get install libzmq-dev build-essential git cmake python3 python3-dev python3-virtualenv
+```
 
-## Optional - Jetson TX_ ##
-* instead of a Pi3, use an Nvidia Jetson TX1 or TX2
+if on a raspberry pi
+```
+cd ~
+git clone https://github.com/WiringPi/WiringPi
+cd WiringPi
+./build
+```
 
-## Optional - setup RPLIDAR ###
+build czmq
+```
+cd ~
+git clone https://github.com/zeromq/czmq.git
+cd czmq
+mkdir build && cd build
+cmake .. && make
+sudo make install
+```
+
+Some distributions do not have /usr/local/lib in the default LD_LIBRARY_PATH. To
+fix this, you need to edit /etc/ld.so.conf and add in a single line:
+
+  /usr/local/lib
+
+then run the ldconfig command.
+
+  sudo ldconfig
+
+### Setup Status LED ###
+* connect an led to any open pwm on servo hat
+* modify config.json to match pwm channel choice
+
+### Optional - Setup RPLIDAR
 * download sdk and unzip to rplidar dir
 * cd rplidar/sdk && make
 * sudo cp ./output/Linux/Release/*.a /usr/local/lib/
 * sudo mkdir /usr/local/include/rplidar
 * sudo cp ./sdk/include/* /usr/local/include/rplidar
 
-## Optional - setup BreezySLAM
+### Optional - Setup BreezySLAM
 * git clone https://github.com/simondlevy/BreezySLAM.git
 * cd BreezySlam/cpp && make
 * sudo make install
 * sudo mkdir /usr/local/include/BreezySLAM
 * sudo cp *.hpp /usr/local/include/BreezySLAM/
+ 
+### Clone Repo
+```
+git clone https://github.com/tawnkramer/shark
+cd shark
+```
+
+### Setup virtualenv
+
+```
+virtualenv -p python3 env
+source env/bin/activate
+```
+
+### Install python packages
+```
+pip install -r requirements.txt
+```
+
+### Setup Configs
+```
+cp config_example.json config.json  
+```
+edit config.json to match your setup
+
+### Build Shark
+
+```
+mkdir build
+cd build
+cmake ..
+make
+cd ..
+```
+
+### Run Shark
+```
+python shark.py
+```
+
+### Run Web UI
+optionally
+```
+cd web
+python webapp.py
+```
