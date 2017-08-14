@@ -73,14 +73,20 @@ class WebSite(object):
         #led_status.blink(conf.status_pin, n_times=3, delay=0.5)
         self.pred_control_address = ('127.0.0.1', conf.keras_predict_server_control_port)
         self.last_frame = Image.open('./img/shark.jpg')
-        self.model_file = "../models/drive"
+        self.model_file = conf.web_rel_default_model
         self.model = None
         self.iImage = 0
-        self.train_epochs = 50
+        self.train_epochs = conf.training_default_epochs
         self.set_ec2_train_defaults()
         self.sync_remote_proc = None
         self.sync_local_proc = None
         self.sync_proc_log = []
+        
+        if conf.debug_test_web:
+            print("verbose debug message enabled.")
+
+        #target local by default
+        self.target_local()
         #you can also target a non aws server.
         #self.set_detalt_alter_server()
         
@@ -113,7 +119,7 @@ class WebSite(object):
         self.aws_host_ip = "localhost"
         self.pem_file = None
         self.source_command = "ls"
-        raise cherrypy.HTTPRedirect("/manage_ec2")
+        #raise cherrypy.HTTPRedirect("/manage_ec2")
     target_local.exposed = True
 
     def get_css(self):
@@ -768,6 +774,10 @@ class WebSite(object):
         command = "scp ../*.py %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
         commands.append(command)
 
+        #copy config.json
+        command = "scp ../config.json %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
+        commands.append(command)
+
         command = "scp -r shadows %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
         commands.append(command)
 
@@ -904,22 +914,34 @@ class WebSite(object):
             commands = []
             path, model_name = os.path.split(self.model_file)
 
-            #kick off training
-            command = "ssh -oStrictHostKeyChecking=no %s@%s '%s; cd shark; python train.py %s --epochs %d;'" % (self.aws_host_username, self.aws_host_ip, self.source_command, model_name, self.train_epochs)
-            commands.append(command)
+            local = self.aws_host_ip == "localhost"
 
-            #copy result model
-            command = "scp %s@%s:~/shark/%s ../models/" % (self.aws_host_username, self.aws_host_ip, model_name)
-            commands.append(command)
+            if local:
+                #confirm training location
+                command = 'echo "training locally"'
+                commands.append(command)
 
-            #copy best result model
-            command = "scp %s@%s:~/shark/%s_best ../models/" % (self.aws_host_username, self.aws_host_ip, model_name)
-            commands.append(command)
+                #kick off training
+                command = "cd ..;python train.py ./models/%s --epochs %d;" % ( model_name, self.train_epochs)
+                commands.append(command)
 
-            #expand tar
-            command = "scp %s@%s:~/shark/loss.png ./img/" % (self.aws_host_username, self.aws_host_ip)
-            commands.append(command)
-            
+                #mv training graph
+                command = "mv ../loss.png ./img/"
+                commands.append(command)
+                
+            else:
+                #kick off training
+                command = "ssh -oStrictHostKeyChecking=no %s@%s '%s; cd shark; python train.py %s --epochs %d;'" % (self.aws_host_username, self.aws_host_ip, self.source_command, model_name, self.train_epochs)
+                commands.append(command)
+
+                #copy result model
+                command = "scp %s@%s:~/shark/%s ../models/" % (self.aws_host_username, self.aws_host_ip, model_name)
+                commands.append(command)
+
+                #copy training graph
+                command = "scp %s@%s:~/shark/loss.png ./img/" % (self.aws_host_username, self.aws_host_ip)
+                commands.append(command)
+                
             yield(self.stream_page(title="Shark Training"))
             yield('<pre>')
             for com in commands:                

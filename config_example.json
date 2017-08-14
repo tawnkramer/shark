@@ -9,6 +9,9 @@
 //which joystick axis to use for steering
 "js_axis_steer" : 0, //PS3 left analog left and right is axis 0
 
+//Do we need a scalar to the steering?
+"js_axis_steer_mult" : 1.0, //can be -1 if need to reverse throttle
+
 //which joystick axis to use for throttle
 "js_axis_throttle" : 3, //PS3 right analog up and down is axis 3
 
@@ -237,6 +240,9 @@
 
 //which model to load for prediction, and also training, as default model
 "predict_default_model" : "./models/test",
+
+//how many outputs from our trained neural network
+"model_output_dim" : 2, //1 when steering only, 2 when steering and throttle
 
 //////////////////////////////////////////
 // lidar settings

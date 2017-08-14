@@ -16,8 +16,7 @@ import keras
 import conf
 import random
 import augment
-
-conf.init()
+import models
 
 '''
 matplotlib can be a pain to setup. So handle the case where it is absent. When present,
@@ -33,8 +32,10 @@ try:
 except:
     do_plot = False
 
-import models
-#from load_data import *
+'''
+expand configuration from config.json into conf scoped variables
+'''
+conf.init()
 
 def test_open_images(samples):
     for fullpath in samples:
@@ -130,13 +131,21 @@ def generator(samples, batch_size=32, perc_to_augment=0.5, transposeImages=False
                         image = image.transpose()
 
                     images.append(image)
-                    controls.append([steering, throttle])
+
+                    if conf.model_output_dim == 2:
+                        controls.append([steering, throttle])
+                    else:
+                        controls.append([steering])
 
                     #flip image and steering.
                     if conf.training_flip_image:
                         image = np.fliplr(image)
                         images.append(image)
+
+                        if conf.model_output_dim == 2:
                         controls.append([-steering, throttle])
+                    else:
+                        controls.append([-steering])
                 except:
                     yield [], []
 
@@ -211,22 +220,24 @@ def go(model_name, epochs=50, inputs='./log/*.jpg', limit=None, aug_mult=1, aug_
 
     print('working on model', model_name)
 
+    out_dim = conf.model_output_dim
+
     '''
     modify config.json to select the model to train.
     '''
     if conf.model_selection == "nvidia_transposed_inputs":
-        model = models.get_nvidia_model()
+        model = models.get_nvidia_model(out_dim)
     elif conf.model_selection == "nvidia_standard_inputs":
-        model = models.get_nvidia_model2()
+        model = models.get_nvidia_model2(out_dim)
     elif conf.model_selection == "simple":
-        model = models.get_simple_model()
+        model = models.get_simple_model(out_dim)
     else:
-        model = models.get_nvidia_model()
+        model = models.get_nvidia_model(out_dim)
 
     transposeImages = (model.ch_order == 'channel_first')
     
     callbacks = [
-        keras.callbacks.EarlyStopping(monitor='val_loss', patience=conf.training_patience, verbose=0),
+        #keras.callbacks.EarlyStopping(monitor='val_loss', patience=conf.training_patience, verbose=0),
         keras.callbacks.ModelCheckpoint(model_name, monitor='val_loss', save_best_only=True, verbose=0),
     ]
     

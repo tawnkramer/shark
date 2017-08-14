@@ -19,7 +19,7 @@ def show_model_summary(model):
     for layer in model.layers:
         print(layer.output_shape)
 
-def get_nvidia_model():
+def get_nvidia_model(model_output_dim):
     '''
     this model is inspired by the NVIDIA paper
     https://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf
@@ -54,12 +54,12 @@ def get_nvidia_model():
     model.add(ELU())
     model.add(Dense(128))
     model.add(ELU())
-    model.add(Dense(2))
+    model.add(Dense(model_output_dim))
 
     model.compile(optimizer="adam", loss="mse")
     return model
 
-def get_nvidia_model2():
+def get_nvidia_model2(model_output_dim):
     '''
     this model is inspired by the NVIDIA paper
     https://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf
@@ -102,7 +102,7 @@ def get_nvidia_model2():
     model.add(Activation('tanh'))
 
     #two floats for steering and throttle commands
-    model.add(Dense(2))
+    model.add(Dense(model_output_dim))
 
     #choose a loss function and optimizer
     model.compile(loss='mse', optimizer='adam')
@@ -112,7 +112,7 @@ def get_nvidia_model2():
     return model
 
 
-def get_simple_model():
+def get_simple_model(model_output_dim):
     '''
     trying for a more simple model
     '''
@@ -144,7 +144,7 @@ def get_simple_model():
     model.add(Activation('tanh'))
 
     #two floats for steering and throttle commands
-    model.add(Dense(2))
+    model.add(Dense(model_output_dim))
 
     #choose a loss function and optimizer
     model.compile(loss='mse', optimizer='adam')
@@ -154,7 +154,7 @@ def get_simple_model():
     return model
 
 
-def get_nvidia_model_sw():
+def get_nvidia_model_sw(model_output_dim):
     '''
     this model is based on the NVIDIA paper
     https://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf
@@ -186,7 +186,7 @@ def get_nvidia_model_sw():
     model.add(Activation('relu'))
     model.add(Dense(128))
     model.add(Activation('tanh'))
-    model.add(Dense(2))
+    model.add(Dense(model_output_dim))
 
     model.compile(optimizer="adam", loss="mse")
     return model
