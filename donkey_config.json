@@ -133,7 +133,7 @@
 //their bot.
 "steering_low" : 330,
 "steering_hi" : 430,
-"steering_mid" : 400,
+"steering_mid" : 380,
 
 //These low, hi, med values were observed by using the 
 //arrows.py script to see what worked. User can adjust to suit
@@ -143,7 +143,7 @@
 "esc_init_mid" : 380, //idle
 
 "esc_throttle_lo" : 300, //reverse
-"esc_throttle_hi" : 420, //full forward
+"esc_throttle_hi" : 460, //full forward
 "esc_throttle_mid" : 380, //idle
 
 
