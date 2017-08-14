@@ -1,0 +1,326 @@
+{
+
+///////////////////////////////////
+// Joystick control section
+
+//system path to the file which acts as interface to joystick
+"js_path": "/dev/input/js0",
+
+//which joystick axis to use for steering
+"js_axis_steer" : 0, //PS3 left analog left and right is axis 0
+
+//Do we need a scalar to the steering?
+"js_axis_steer_mult" : -1.0, //can be -1 if need to reverse throttle
+
+//which joystick axis to use for throttle
+"js_axis_throttle" : 3, //PS3 right analog up and down is axis 3
+
+//which button to toggle self driving/prediction mode
+"js_button_toggle_sd" : 12, //12 is the Triangle button on PS3 SixAxis controller
+
+//which button to toggle logging mode
+"js_button_toggle_logging" : 14, //14 is the X button on PS3 SixAxis controller
+
+//dpad up and down control the scale on the throttle for driving when in sd mode
+"js_button_dpad_up" : 4,
+"js_button_dpad_down" : 6,
+
+//we ge inputput from +- js_axis_scale and then normalize them for input to robot
+"js_axis_scale" : 32767.0,
+
+
+///////////////////////////////////
+// Camera Type Selection
+// we support three camera types
+// Raspicam, the CSI camera on a ribbon made for the pi
+// V4L, the v4l camera device works with many webcameras
+// PointGrey, any of the PointGrey/Flir cameras compatible with flycapture2
+
+"camera_type" : "Raspicam", // "Raspicam", "V4L", "PointGrey"
+
+//When mounting the camera upside down, it's helpful to flip both of these.
+//Only the Raspicam supports this operation.
+"CAMERA_FLIP_VERT" : 0,
+"CAMERA_FLIP_HORZ" : 0,
+
+// Capture dimensions
+// Frequently the camera is constrained to certain capture resolutions.
+// In most cases, code will need to change to support other resulutions.
+// The post image process may need adjustment, as well as initialization.
+
+"raspi_camera_cap_width" : 160,
+"raspi_camera_cap_height" : 120,
+
+"v4l_camera_cap_width" : 320,
+"v4l_camera_cap_height" : 240,
+
+"pg_camera_cap_width" : 640,
+"pg_camera_cap_height" : 480,
+
+// For v4l camera, use the command line tool v4l2-ctl
+//  v4l2-ctl --list-formats-ext
+// to help modify the code src/contib/v4l_helper/capture_raw_frames.c
+// If not YUYV, you will need to also modify src/main.cpp process_image
+
+//final image dimensions - logged and sent to prediction
+"col": 160,     //width
+"row" : 120,    //height
+"ch" : 3,       //depth
+
+
+//video for linux uses a filename for the device access
+"v4l_device_name" : "/dev/video0",
+
+//some devices can take values of 30, 37, 50, 60, 100, 125, 137, 150, 187 ( PS3 Eye camera)
+"v4l_fps": 60,
+
+//////////////////////////////////////////////////
+/// Source lib HACK!!!
+// for some reason the raspicam setFrameRate isnt' working. I changed
+// the framerate in the library.
+// raspicam/src/private/private_impl.cpp
+// change: State.framerate            = 10;
+// to:     State.framerate            = 60;
+//
+// make this change and recompile raspicam for a better framerate.
+//////////////////////////////////////////////////
+
+
+////////////////////////////////////
+// Logging
+
+"log_dir" : "log",
+
+//limit data recording to this hz
+"logger_fps_limit" : 60,
+
+//steering our bot takes a -1, to 1 range
+//but our NN likes larger numbers to train against
+//so scale our steering output by this constant
+"STEERING_NN_SCALE" : 30.0,
+
+
+
+////////////////////////////////////
+// Car Setup
+
+//echo various information to the console about the pwm board, servos, and esc boot status
+"debug_show_car_detailed_status" : 1,
+
+//These are the 0-15 integer plug in that we use for the Adafruit Servo Hat
+"ada_steering_servo_channel" : 1,
+"ada_esc_motor_channel" : 0,
+
+//the filename used to access the pwm on the i2c bus
+"pwm_device_file" : "/dev/i2c-1",
+
+//what is the address on the i2c bus of the pwm board
+"pwm_ic2_address" : "0x40",
+
+//what is the frequency of pulse width modulation our servo likes
+"pwm_servo_freq": 60,
+
+//what is max number of levels for our servo
+"pwm_servo_resolution": 4096,
+
+//These are the integer ids of the axis on the joystick for input
+"steering_js_axis_id" : 0,
+"throttle_js_axis_id" : 3,
+
+
+//These low, hi, med values were observed by using the 
+//arrows.py script to see what worked. User can adjust to suit
+//their bot.
+"steering_low" : 330,
+"steering_hi" : 430,
+"steering_mid" : 400,
+
+//These low, hi, med values were observed by using the 
+//arrows.py script to see what worked. User can adjust to suit
+//their bot.
+"esc_init_lo" : 220, //reverse
+"esc_init_hi" : 500, //full forward
+"esc_init_mid" : 380, //idle
+
+"esc_throttle_lo" : 300, //reverse
+"esc_throttle_hi" : 420, //full forward
+"esc_throttle_mid" : 380, //idle
+
+
+
+//////////////////////////////////////////
+// status led settings
+
+//gpio pin we use for status led 
+"status_pin" : 23,
+
+
+//////////////////////////////////////////
+// predict engine settings
+
+//port for keras prediction server image inputs
+"keras_predict_server_img_port": 9090,
+
+//port for keras prediction server control inputs
+"keras_predict_server_control_port": 9190,
+
+
+//////////////////////////////////////////
+// shark web app settings
+
+//port for web http service to manage shark
+"web_app_server_port": 8080,
+
+//port for web image feed
+"web_image_port": 9191,
+
+//port for web lidar feed
+"web_lidar_port": 9192,
+
+//which model do we train by default. use a path relative to the shark/web dir where we are running
+"web_rel_default_model": "../models/test",
+
+//////////////////////////////////////////
+// ec2 settings
+
+//cents per hour max price
+"aws_spot_price" : "0.90",
+
+//this path is relative to the shark/web dir where we use this config
+"aws_config" : "../aws_config.json",
+
+//this pem need to be an absolute path
+"pem_filename" : "/home/tkramer/tkramer_pi.pem",
+
+//////////////////////////////////////////
+// alt train server settings
+
+"alt_train_host" : "sd-tkramer-01",
+"alt_train_user" : "tkramer",
+
+//default local user is pi on the raspberry pi
+"local_user" : "tkramer",
+
+
+//////////////////////////////////////////
+// model selection
+
+//You can enable one of two lines here to select a model for training.
+//Check models.py for notes on their differences.
+"model_selection" : "nvidia_transposed_inputs",
+//"model_selection" : "nvidia_standard_inputs",
+
+
+
+//////////////////////////////////////////
+// training settings/defaults
+
+//how many epochs to wait before seeing no improvement
+"training_patience" : 10,
+
+//number of samples per gradient update
+"training_batch_size" : 3000,
+
+//fraction of data held out for use in validation
+"training_validation_split" : 0.1,
+
+//number of epochs to train model. command line option can override.
+"training_default_epochs" : 50,
+
+//how many images to create when augmenting. Always leave at 1, even when no
+//augmentation. total image count increase by this multiple to allow for the same image
+//to be augmented in different ways. command line option can override.
+"training_default_aug_mult" : 1,
+
+//Of all the images, what fraction are augmented. command line option can override.
+"training_default_aug_percent": 0.5,
+
+//which model to load for prediction, and also training, as default model
+"predict_default_model" : "./models/test",
+
+//////////////////////////////////////////
+// lidar settings
+
+//switch to turn lidar processing on and off. sometimes, even when installed,
+//we may want it off to save bettery when not using it.
+"lidar_enabled": 1,
+
+//device file to open for lidar input
+"lidar_dev_file" : "/dev/ttyUSB0",
+
+//should we print return values to console
+"lidar_verbose_output" : 0,
+
+
+
+//////////////////////////////////////////
+// slam settings
+
+//should we print slam position to the console
+"slam_verbose_position": 0,
+
+//should we output slam map to web. this take some small amount of resources.
+"slam_output_debug_map": 0,
+
+
+
+//////////////////////////////////////////
+// pid settings
+
+"pid_Kp" : 20.0,
+"pid_Ki" : 0.001,
+"pid_Kd" : 5.0,
+
+//////////////////////////////////////////
+// debug settings
+
+//selectively disable control loops
+//enable or disable just the car control loop
+"enable_pwm_car_control" : 1,
+
+//show the frames per second for each control loop
+"debug_display_fps" : 0,
+
+//when 1, start the recording when shark starts. run the recording even though no js input.
+//this is good for validating camera and logging systems.
+"debug_test_recording": 0,
+
+//when 1, run the predict loop when shark starts.
+"debug_test_predict": 0,
+
+//when 1, output all joystick inputs to console.
+"debug_test_js": 0,
+
+//when 1, output all web image status to console.
+"debug_test_web": 0,
+
+/////////////////////////////////////
+// When calibrating the inputs for pwm, use this these flags to help arrive at the proper
+// values for your setup. When initing the ESC, electronic speed control, there is often
+// a special sequence needed. For the Traxxas slash XL-5 ESC, you need to go directly to 
+// highest, then lowest, then middle. So h l m on the keyboard before it will init.
+// Critically, the middle value seems to vary slightly depending on the board and voltages.
+// 400 worked as a middle value for the adafruit hat on a pi3. But with the jetson tx2 and
+// a smaller pwm board, I needed a value of 380 for the middle. To find the middle value,
+// go high, low middle, then wander slowly up then down from 400 while watching the arming
+// light on the esc until it changes to solid red.
+
+//when 1, look for keyboard input from console to do interactive testing of pwm channel.
+//can be helpful when configuring hi low values for servo
+"debug_test_pwm": 0,
+
+//which pin channel to address for debug calibration ( 0-15 if 16 set of pins )
+"debug_pwm_ch": 1,
+
+//high value to use during pwm testing
+"debug_pwm_hi": 500,
+
+//mid value to use during pwm testing.
+"debug_pwm_mid": 380,
+
+//low value to use during pwm testing
+"debug_pwm_lo": 220
+
+
+}
+
