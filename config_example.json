@@ -216,7 +216,7 @@
 "training_patience" : 10,
 
 //number of samples per gradient update
-"training_batch_size" : 3000,
+"training_batch_size" : 128,
 
 //fraction of data held out for use in validation
 "training_validation_split" : 0.1,

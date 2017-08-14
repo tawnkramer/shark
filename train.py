@@ -34,7 +34,16 @@ except:
     do_plot = False
 
 import models
-from load_data import *
+#from load_data import *
+
+def test_open_images(samples):
+    for fullpath in samples:
+        try:
+            image = Image.open(fullpath)
+        except:
+            print('problems opening', fullpath)
+            os.unlink(fullpath)
+            samples.remove(fullpath)
 
 def shuffle(samples):
     '''
@@ -108,7 +117,7 @@ def generator(samples, batch_size=32, perc_to_augment=0.5, transposeImages=False
                         image = None
 
                     if image is None:
-                        print('failed to open', fullpath)
+                        #print('failed to open', fullpath)
                         continue
 
                     #PIL Image as a numpy array
@@ -173,6 +182,8 @@ def make_generators(inputs, limit=None, batch_size=32, aug_perc=0.0, transposeIm
     #get the image/steering pairs from the csv files
     lines = get_files(inputs)
     print("found %d files" % len(lines))
+    test_open_images(lines)
+    print("clean left %d files" % len(lines))
 
     if limit is not None:
         lines = lines[:limit]
@@ -186,9 +197,12 @@ def make_generators(inputs, limit=None, batch_size=32, aug_perc=0.0, transposeIm
     train_generator = generator(train_samples, batch_size=batch_size, perc_to_augment=aug_perc, transposeImages=transposeImages)
     validation_generator = generator(validation_samples, batch_size=batch_size, perc_to_augment=0.0, transposeImages=transposeImages)
     
-    #double each because we will flip image in generator
-    n_train = len(train_samples) * 2
-    n_val = len(validation_samples) * 2
+    #double each if we will flip image in generator
+    mul = 1
+    if conf.training_flip_image:
+        mul = 2
+    n_train = len(train_samples) * mul
+    n_val = len(validation_samples) * mul
     
     return train_generator, validation_generator, n_train, n_val
 
