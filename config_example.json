@@ -232,6 +232,9 @@
 //Of all the images, what fraction are augmented. command line option can override.
 "training_default_aug_percent": 0.5,
 
+//When training, submit each image twice, once flipped horizontally with the steering inverted
+"training_flip_image" : true,
+
 //which model to load for prediction, and also training, as default model
 "predict_default_model" : "./models/test",
 

@@ -83,7 +83,9 @@ def generator(samples, batch_size=32, perc_to_augment=0.5, transposeImages=False
     if do_augment:
         shadows = augment.load_shadow_images('./shadows/*.png')    
     
-    batch_size = int(batch_size / 2)
+    if conf.training_flip_image:
+        batch_size = int(batch_size / 2)
+
     while 1: # Loop forever so the generator never terminates
         samples = shuffle(samples)
         #divide batch_size in half, because we double each output by flipping image.
@@ -118,15 +120,14 @@ def generator(samples, batch_size=32, perc_to_augment=0.5, transposeImages=False
                     if transposeImages:
                         image = image.transpose()
 
-                    center_angle = steering
                     images.append(image)
-                    controls.append([center_angle, throttle])
+                    controls.append([steering, throttle])
 
                     #flip image and steering.
-                    image = np.fliplr(image)
-                    center_angle = -center_angle
-                    images.append(image)
-                    controls.append([center_angle, throttle])
+                    if conf.training_flip_image:
+                        image = np.fliplr(image)
+                        images.append(image)
+                        controls.append([-steering, throttle])
                 except:
                     yield [], []
 
