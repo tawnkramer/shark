@@ -84,6 +84,9 @@ def go(model_path, pred_address, pred_control_address):
                 
                 if h == ich and ch == ih:
                     img = img.transpose()
+                
+                #if conf.GREY_SCALE:
+                #    img = img[:,:,:1]
                     
                 try:
                     outputs = model.predict(img[None, :, :, :])
@@ -110,8 +113,8 @@ def go(model_path, pred_address, pred_control_address):
             prediction = '{ "steering" : %f,  "throttle" : %f}' %\
                 (steering, throttle)
 
-            socket.send(prediction)
-            print ('prediction', prediction)
+            socket.send_string(prediction)
+            #print ('prediction', prediction)
             if num_pred == 0:
                 num_pred += 1
                 start = time.time()
@@ -129,6 +132,7 @@ def go(model_path, pred_address, pred_control_address):
             '''
             message = cont_socket.recv()
             try:
+                message = message.decode('utf-8')
                 print('got:', message)
                 jsonObj = json.loads(message)
                 if jsonObj['command'] == 'set_throttle':
@@ -140,13 +144,13 @@ def go(model_path, pred_address, pred_control_address):
                     print('loading model', model_path)
                     try:
                         model = keras.models.load_model(model_path)
-                        cont_socket.send("model loaded")
+                        cont_socket.send_string("model loaded")
                     except:
-                        cont_socket.send("model load failed : %s", model_path)
+                        cont_socket.send_string("model load failed : %s", model_path)
                 if jsonObj['command'] == 'ping':
-                    cont_socket.send("predict is alive.")
+                    cont_socket.send_string("predict is alive.")
             except:
-                cont_socket.send("failure on message")
+                cont_socket.send_string("failure on message")
 
 def pred_image(model_path, image_path):
     if model_path.find('.json') != -1:
@@ -238,9 +242,9 @@ if __name__ == "__main__":
     if args.test_image is not None:
         pred_image(args.model, args.test_image)
     elif(args.test_speed):
-        #model = models.get_nvidia_model_sw()
+        model = models.get_nvidia_model_sw()
         #model = models.get_nvidia_model()
-        model = None
+        #model = None
         print('running profile on prediction loop')
         profile_speed(args.model, model)
     else:

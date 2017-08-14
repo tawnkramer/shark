@@ -73,20 +73,16 @@ class WebSite(object):
         #led_status.blink(conf.status_pin, n_times=3, delay=0.5)
         self.pred_control_address = ('127.0.0.1', conf.keras_predict_server_control_port)
         self.last_frame = Image.open('./img/shark.jpg')
-        self.model_file = conf.web_rel_default_model
+        self.model_file = "../models/drive"
         self.model = None
         self.iImage = 0
-        self.train_epochs = conf.training_default_epochs
+        self.train_epochs = 50
         self.set_ec2_train_defaults()
         self.sync_remote_proc = None
         self.sync_local_proc = None
         self.sync_proc_log = []
-
-        if conf.debug_test_web:
-            print("verbose debug message enabled.")
-
-        #target local by default
-        self.target_local()
+        #you can also target a non aws server.
+        #self.set_detalt_alter_server()
         
     def set_default_alter_server(self):
         self.aws_host_username = conf.alt_train_user
@@ -117,7 +113,7 @@ class WebSite(object):
         self.aws_host_ip = "localhost"
         self.pem_file = None
         self.source_command = "ls"
-        #raise cherrypy.HTTPRedirect("/manage_ec2")
+        raise cherrypy.HTTPRedirect("/manage_ec2")
     target_local.exposed = True
 
     def get_css(self):
@@ -274,7 +270,7 @@ class WebSite(object):
         socket = context.socket(zmq.REQ)
         connect_str = "tcp://%s:%s" % (self.pred_control_address[0], self.pred_control_address[1])
         socket.connect(connect_str)
-        socket.send(command)
+        socket.send_string(command)
         reply = socket.recv()
         res.append(reply)
         res.append("<br>")
@@ -293,27 +289,21 @@ class WebSite(object):
 
     def img_live(self):
         cherrypy.response.headers["Content-Type"] = "multipart/x-mixed-replace;boundary=--boundarydonotcross"
-        boundary = "--boundarydonotcross"
+        boundary = b"--boundarydonotcross"
         def content():
             iImage = 0
             delay  = 1.0 / 30.0
             context = zmq.Context()
             socket = context.socket(zmq.REQ)
             connect_str = "tcp://127.0.0.1:%d" % conf.web_image_port
-            print( "connecting to live image at:", connect_str)
+            print("connecting to live image at:", connect_str)
             socket.connect(connect_str)
             command = "hi"
             row, col, ch = conf.row, conf.col, conf.ch
             font = ImageFont.truetype("./static/fonts/BADABB__.TTF", 16)
             while True:
-                if conf.debug_test_web:
-                    print("sending request for image")
-                socket.send(command)
+                socket.send_string(command)
                 img_str = socket.recv()
-                
-                if conf.debug_test_web:
-                    print("got image data")
-                
                 lin_arr = np.fromstring(img_str, dtype=np.uint8)
                 img_arr = lin_arr.reshape(row, col, ch)
                 img = Image.fromarray(img_arr, "RGB")
@@ -330,9 +320,10 @@ class WebSite(object):
                 with BytesIO() as output:
                     img.save(output, "JPEG")
                     jpg_img = output.getvalue()
+                cont_len = "Content-length: %s\r\n\r\n" % len(jpg_img)
                 yield(boundary)
-                yield("Content-type: image/jpeg\r\n")
-                yield("Content-length: %s\r\n\r\n" % len(jpg_img))
+                yield(b"Content-type: image/jpeg\r\n")
+                yield( str.encode(cont_len) )
                 yield(jpg_img)
                 #time.sleep(delay)
                 
@@ -352,19 +343,19 @@ class WebSite(object):
 
     def lidar_live(self):
         cherrypy.response.headers["Content-Type"] = "multipart/x-mixed-replace;boundary=--boundarydonotcross"
-        boundary = "--boundarydonotcross"
+        boundary = b"--boundarydonotcross"
         def content():
             iImage = 0
             context = zmq.Context()
             socket = context.socket(zmq.REQ)
             connect_str = "tcp://127.0.0.1:%d" % conf.web_lidar_port
-            print ("connecting to live image at:", connect_str)
+            print("connecting to live image at:", connect_str)
             socket.connect(connect_str)
             command = "hi"
             row, col, ch = 512, 512, 3
             font = ImageFont.truetype("./static/fonts/BADABB__.TTF", 16)
             while True:
-                socket.send(command)
+                socket.send_string(command)
                 img_str = socket.recv()
                 lin_arr = np.fromstring(img_str, dtype=np.uint8)
                 img_arr = lin_arr.reshape(row, col, ch)
@@ -373,8 +364,8 @@ class WebSite(object):
                     img.save(output, "JPEG")
                     jpg_img = output.getvalue()
                 yield(boundary)
-                yield("Content-type: image/jpeg\r\n")
-                yield("Content-length: %s\r\n\r\n" % len(jpg_img))
+                yield(b"Content-type: image/jpeg\r\n")
+                yield(("Content-length: %s\r\n\r\n" % len(jpg_img)).encode() )
                 yield(jpg_img)
                 
         return content()
@@ -494,7 +485,7 @@ class WebSite(object):
 
     def img_log(self):
         cherrypy.response.headers["Content-Type"] = "multipart/x-mixed-replace;boundary=--boundarydonotcross"
-        boundary = "--boundarydonotcross"
+        boundary = b"--boundarydonotcross"
         
         def content():
             interval = 1.0 / 60.0
@@ -530,8 +521,8 @@ class WebSite(object):
                             img = img_to_binary(img)
                     if img is not None:
                         yield(boundary)
-                        yield("Content-type: image/jpeg\r\n")
-                        yield("Content-length: %s\r\n\r\n" % len(img))
+                        yield(b"Content-type: image/jpeg\r\n")
+                        yield(b"Content-length: %s\r\n\r\n" % len(img))
                         yield(img)
                     time.sleep(interval)
         return content()
@@ -701,7 +692,7 @@ class WebSite(object):
                 socket = context.socket(zmq.REQ)
                 connect_str = "tcp://%s:%s" % (self.pred_control_address[0], self.pred_control_address[1])
                 socket.connect(connect_str)
-                socket.send(command.encode('utf-8'))
+                socket.send_string(command.encode('utf-8'))
                 reply = socket.recv()
                 #led_status.blink(conf.status_pin, n_times=10, delay=0.2)
                 res.append(reply)
@@ -775,10 +766,6 @@ class WebSite(object):
 
         #copy all the training python source
         command = "scp ../*.py %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
-        commands.append(command)
-
-        #copy config.json
-        command = "scp ../config.json %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
         commands.append(command)
 
         command = "scp -r shadows %s@%s:~/shark" % (self.aws_host_username, self.aws_host_ip)
@@ -917,34 +904,22 @@ class WebSite(object):
             commands = []
             path, model_name = os.path.split(self.model_file)
 
-            local = self.aws_host_ip == "localhost"
+            #kick off training
+            command = "ssh -oStrictHostKeyChecking=no %s@%s '%s; cd shark; python train.py %s --epochs %d;'" % (self.aws_host_username, self.aws_host_ip, self.source_command, model_name, self.train_epochs)
+            commands.append(command)
 
-            if local:
-                #confirm training location
-                command = 'echo "training locally"'
-                commands.append(command)
+            #copy result model
+            command = "scp %s@%s:~/shark/%s ../models/" % (self.aws_host_username, self.aws_host_ip, model_name)
+            commands.append(command)
 
-                #kick off training
-                command = "cd ..;python train.py ./models/%s --epochs %d;" % ( model_name, self.train_epochs)
-                commands.append(command)
+            #copy best result model
+            command = "scp %s@%s:~/shark/%s_best ../models/" % (self.aws_host_username, self.aws_host_ip, model_name)
+            commands.append(command)
 
-                #mv training graph
-                command = "mv ../loss.png ./img/"
-                commands.append(command)
-                
-            else:
-                #kick off training
-                command = "ssh -oStrictHostKeyChecking=no %s@%s '%s; cd shark; python train.py %s --epochs %d;'" % (self.aws_host_username, self.aws_host_ip, self.source_command, model_name, self.train_epochs)
-                commands.append(command)
-
-                #copy result model
-                command = "scp %s@%s:~/shark/%s ../models/" % (self.aws_host_username, self.aws_host_ip, model_name)
-                commands.append(command)
-
-                #copy training graph
-                command = "scp %s@%s:~/shark/loss.png ./img/" % (self.aws_host_username, self.aws_host_ip)
-                commands.append(command)
-                
+            #expand tar
+            command = "scp %s@%s:~/shark/loss.png ./img/" % (self.aws_host_username, self.aws_host_ip)
+            commands.append(command)
+            
             yield(self.stream_page(title="Shark Training"))
             yield('<pre>')
             for com in commands:                

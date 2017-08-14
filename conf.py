@@ -19,5 +19,10 @@ def init(config_filename = 'config.json'):
     settings_json = json.loads(''.join(json_lines))
 
     module = sys.modules[__name__]
-    for name, value in settings_json.iteritems():
-        setattr(module, name, value)
+    try:
+        for name, value in settings_json.iteritems():
+            setattr(module, name, value)
+    except:
+        for name, value in settings_json.items():
+            setattr(module, name, value)
+
