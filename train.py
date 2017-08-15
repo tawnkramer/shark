@@ -184,7 +184,7 @@ def train_test_split(lines, test_perc):
 
 def make_generators(inputs, limit=None, batch_size=32, aug_perc=0.0, transposeImages=False):
     '''
-    load the job spec from the csv and create some generator for training
+    get the samples list and create some generator for training
     '''
     
     #get the image/steering pairs from the csv files
@@ -215,7 +215,22 @@ def make_generators(inputs, limit=None, batch_size=32, aug_perc=0.0, transposeIm
     return train_generator, validation_generator, n_train, n_val
 
 
-def go(model_name, epochs=50, inputs='./log/*.jpg', limit=None, aug_mult=1, aug_perc=0.0):
+def do_transpose_inputs(model):
+    '''
+    compare model inputs to image dimensions in config file
+    if height and channel depth are swapped, then we need a transpose
+    '''
+    count, h, w, ch = model.inputs[0].get_shape()
+    return h == conf.ch and ch == conf.row        
+
+
+def go(model_name, 
+        epochs=50, 
+        inputs='./log/*.jpg', 
+        limit=None, 
+        aug_mult=1, 
+        aug_perc=0.0,
+        resume=False):
 
     print('working on model', model_name)
 
@@ -224,7 +239,9 @@ def go(model_name, epochs=50, inputs='./log/*.jpg', limit=None, aug_mult=1, aug_
     '''
     modify config.json to select the model to train.
     '''
-    if conf.model_selection == "nvidia_transposed_inputs":
+    if resume:
+        model = keras.models.load_model(model_name)
+    elif conf.model_selection == "nvidia_transposed_inputs":
         model = models.get_nvidia_model(out_dim)
     elif conf.model_selection == "nvidia_standard_inputs":
         model = models.get_nvidia_model_std(out_dim)
@@ -233,7 +250,7 @@ def go(model_name, epochs=50, inputs='./log/*.jpg', limit=None, aug_mult=1, aug_
     else:
         model = models.get_nvidia_model(out_dim)
 
-    transposeImages = (model.ch_order == 'channel_first')
+    transposeImages = do_transpose_inputs(model)
     
     callbacks = [
         #keras.callbacks.EarlyStopping(monitor='val_loss', patience=conf.training_patience, verbose=0),
@@ -275,8 +292,9 @@ if __name__ == "__main__":
     parser.add_argument('--limit', type=int, default=None, help='max number of images to train with')
     parser.add_argument('--aug_mult', type=int, default=conf.training_default_aug_mult, help='how many more images to augment')
     parser.add_argument('--aug_perc', type=float, default=conf.training_default_aug_percent, help='what percentage of images to augment 0 - 1')
+    parser.add_argument('--resume', action='store_true', help='load previous model before training')
     args = parser.parse_args()
     
-    go(args.model, epochs=args.epochs, limit=args.limit, inputs=args.inputs, aug_mult=args.aug_mult, aug_perc=args.aug_perc)
+    go(args.model, epochs=args.epochs, limit=args.limit, inputs=args.inputs, aug_mult=args.aug_mult, aug_perc=args.aug_perc, resume=args.resume)
 
 #python train.py mymodel_aug_90_x4_e200 --epochs=200 --aug_mult=4 --aug_perc=0.9
