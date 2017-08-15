@@ -19,10 +19,8 @@ min_image_size = 1 * 1024
 
 def get_files(filemask):
     path, mask = os.path.split(filemask)
-    #print(path, mask)
     matches = []
     for root, dirnames, filenames in os.walk(path):
-        #print(root, dirnames, filenames)
         for filename in fnmatch.filter(filenames, mask):
             matches.append(os.path.join(root, filename))
     return matches

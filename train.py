@@ -101,7 +101,6 @@ def generator(samples, batch_size=32, perc_to_augment=0.5, transposeImages=False
         #divide batch_size in half, because we double each output by flipping image.
         for offset in range(0, num_samples, batch_size):
             batch_samples = samples[offset:offset+batch_size]
-            print(".", end="")
             
             images = []
             controls = []
