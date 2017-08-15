@@ -227,7 +227,7 @@ def go(model_name, epochs=50, inputs='./log/*.jpg', limit=None, aug_mult=1, aug_
     if conf.model_selection == "nvidia_transposed_inputs":
         model = models.get_nvidia_model(out_dim)
     elif conf.model_selection == "nvidia_standard_inputs":
-        model = models.get_nvidia_model2(out_dim)
+        model = models.get_nvidia_model_std(out_dim)
     elif conf.model_selection == "simple":
         model = models.get_simple_model(out_dim)
     else:

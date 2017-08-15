@@ -154,7 +154,7 @@ def get_simple_model(model_output_dim):
     return model
 
 
-def get_nvidia_model_sw(model_output_dim):
+def get_nvidia_model_std(model_output_dim):
     '''
     this model is based on the NVIDIA paper
     https://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf
@@ -170,22 +170,22 @@ def get_nvidia_model_sw(model_output_dim):
             input_shape=(row, col, ch),
             output_shape=(row, col, ch)))
     model.add(Convolution2D(24, 5, 5, subsample=(2, 2), border_mode="same"))
-    model.add(Activation('relu'))
+    model.add(ELU())
     model.add(Convolution2D(36, 5, 5, subsample=(2, 2), border_mode="same"))
-    model.add(Activation('relu'))
+    model.add(ELU())
     model.add(Convolution2D(48, 3, 3, subsample=(2, 2), border_mode="same"))
-    model.add(Activation('relu'))
+    model.add(ELU())
     model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
     model.add(Flatten())
     model.add(Dropout(.2))
-    model.add(Activation('relu'))
+    model.add(ELU())
     model.add(Dense(512))
     model.add(Dropout(.5))
-    model.add(Activation('relu'))
+    model.add(ELU())
     model.add(Dense(256))
-    model.add(Activation('relu'))
+    model.add(ELU())
     model.add(Dense(128))
-    model.add(Activation('tanh'))
+    model.add(ELU())
     model.add(Dense(model_output_dim))
 
     model.compile(optimizer="adam", loss="mse")
