@@ -242,6 +242,8 @@ def go(model_name,
     if resume:
         print('resuming training. loading', model_name)
         model = keras.models.load_model(model_name)
+        sgd = keras.optimizers.SGD(lr=0.0001, decay=1e-6, momentum=0.9, nesterov=True)
+        model.compile(optimizer=sgd, loss="mse")
     elif conf.model_selection == "nvidia_transposed_inputs":
         model = models.get_nvidia_model(out_dim)
     elif conf.model_selection == "nvidia_standard_inputs":
