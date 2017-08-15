@@ -190,3 +190,51 @@ def get_nvidia_model_std(model_output_dim):
 
     model.compile(optimizer="adam", loss="mse")
     return model
+
+def get_nvidia_model_ext(model_output_dim):
+    '''
+    this model is based on the NVIDIA paper
+    https://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf
+    This adds a few more conv layers
+    '''
+    row, col, ch = conf.row, conf.col, conf.ch
+    
+    model = Sequential()
+    model.ch_order = 'channel_last'
+    model.add(Lambda(lambda x: x/127.5 - 1.,
+            input_shape=(row, col, ch),
+            output_shape=(row, col, ch)))
+    model.add(Convolution2D(24, 5, 5, subsample=(2, 2), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(36, 5, 5, subsample=(2, 2), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(48, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(Flatten())
+    model.add(Dropout(.2))
+    model.add(ELU())
+    model.add(Dense(512))
+    model.add(Dropout(.5))
+    model.add(ELU())
+    model.add(Dense(256))
+    model.add(ELU())
+    model.add(Dense(128))
+    model.add(ELU())
+    model.add(Dense(model_output_dim))
+
+    model.compile(optimizer="adam", loss="mse")
+
+    show_model_summary(model)
+    
+    return model

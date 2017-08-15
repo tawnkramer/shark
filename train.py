@@ -240,11 +240,14 @@ def go(model_name,
     modify config.json to select the model to train.
     '''
     if resume:
+        print('resuming training. loading', model_name)
         model = keras.models.load_model(model_name)
     elif conf.model_selection == "nvidia_transposed_inputs":
         model = models.get_nvidia_model(out_dim)
     elif conf.model_selection == "nvidia_standard_inputs":
         model = models.get_nvidia_model_std(out_dim)
+    elif conf.model_selection == "nvidia_ext":
+        model = models.get_nvidia_model_ext(out_dim)
     elif conf.model_selection == "simple":
         model = models.get_simple_model(out_dim)
     else:
