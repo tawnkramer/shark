@@ -141,10 +141,10 @@ def generator(samples, batch_size=32, perc_to_augment=0.5, transposeImages=False
                         image = np.fliplr(image)
                         images.append(image)
 
-                    if conf.model_output_dim == 2:
-                        controls.append([-steering, throttle])
-                    else:
-                        controls.append([-steering])
+                        if conf.model_output_dim == 2:
+                            controls.append([-steering, throttle])
+                        else:
+                            controls.append([-steering])
                 except:
                     yield [], []
 
