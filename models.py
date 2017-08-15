@@ -204,11 +204,9 @@ def get_nvidia_model_ext(model_output_dim):
     model.add(Lambda(lambda x: x/127.5 - 1.,
             input_shape=(row, col, ch),
             output_shape=(row, col, ch)))
-    model.add(Convolution2D(24, 5, 5, subsample=(2, 2), border_mode="same"))
+    model.add(Convolution2D(64, 5, 5, subsample=(2, 2), border_mode="same"))
     model.add(ELU())
-    model.add(Convolution2D(36, 5, 5, subsample=(2, 2), border_mode="same"))
-    model.add(ELU())
-    model.add(Convolution2D(48, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(Convolution2D(64, 5, 5, subsample=(2, 2), border_mode="same"))
     model.add(ELU())
     model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
     model.add(ELU())
@@ -216,11 +214,13 @@ def get_nvidia_model_ext(model_output_dim):
     model.add(ELU())
     model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
     model.add(ELU())
-    model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(Convolution2D(64, 3, 3, subsample=(1, 1), border_mode="same"))
     model.add(ELU())
-    model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(Convolution2D(64, 3, 3, subsample=(1, 1), border_mode="same"))
     model.add(ELU())
-    model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(Convolution2D(64, 3, 3, subsample=(1, 1), border_mode="same"))
+    model.add(ELU())
+    model.add(Convolution2D(64, 3, 3, subsample=(1, 1), border_mode="same"))
     model.add(Flatten())
     model.add(Dropout(.2))
     model.add(ELU())
@@ -236,5 +236,5 @@ def get_nvidia_model_ext(model_output_dim):
     model.compile(optimizer="adam", loss="mse")
 
     show_model_summary(model)
-    
+
     return model
