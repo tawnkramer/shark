@@ -93,8 +93,9 @@ edit raspicam/src/private/private_impl.cpp
 
 ```
 cd raspicam
-make
-sudo make install
+mkdir build
+cd build
+cmake ..
 ```
 
 Some distributions do not have /usr/local/lib in the default LD_LIBRARY_PATH. To
@@ -106,9 +107,6 @@ then run the ldconfig command.
 
   sudo ldconfig
 
-### Setup Status LED ###
-* connect an led to any open pwm on servo hat
-* modify config.json to match pwm channel choice
 
 ### Optional - Setup RPLIDAR
 * download sdk and unzip to rplidar dir
@@ -147,6 +145,10 @@ pip install -r requirements.txt
 cp config_example.json config.json  
 ```
 edit config.json to match your setup
+
+### Setup Status LED ###
+* connect an led to any open pwm on servo hat
+* modify config.json to match pwm channel choice
 
 ### Build Shark
 
