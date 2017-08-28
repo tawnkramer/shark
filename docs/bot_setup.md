@@ -138,7 +138,7 @@ source env/bin/activate
 
 ### Install python packages
 ```
-https://github.com/samjabrahams/tensorflow-on-raspberry-pi/releases/download/v0.12.1/tensorflow-0.12.1-cp34-cp34m-linux_armv7l.whl
+wget https://github.com/samjabrahams/tensorflow-on-raspberry-pi/releases/download/v0.12.1/tensorflow-0.12.1-cp34-cp34m-linux_armv7l.whl
 pip3 install tensorflow-0.12.1-cp34-cp34m-linux_armv7l.whl
 pip3 install -r requirements.txt
 ```
