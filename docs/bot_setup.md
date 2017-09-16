@@ -33,30 +33,144 @@ Also RPLidar support:
 ### Setup PI ###
 * install headless raspian for best performance
 
+### Optional - Jetson TX_
+* instead of a Pi3, use an Nvidia Jetson TX1 or TX2
+
+### Setup a user ###
+* You can use the default pi user, but better to create one that matches whatever pc username for easier ssh
+* add user to groups:  
+        *  sudo 
+        *  video 
+        *  input 
+        *  bluetooth 
+        *  i2c 
+        *  gpio
+* use the command ```sudo usermod -a -G groupName userName``` 
+
+
 ### Setup Adafruit Servo Hat ###
 * setup ic2
+        *  enable in ```raspi-config```
 * connect servo and esc
 
-### Setup Camera ###
+### Setup Camera
 * if raspicam, enable in sudo raspi-config
 * if usb camera, create a special cable to split usb power and data
 
-## Setup Status LED ###
-* connect an led to pin 23 and ground on the Adafruit Servo hat
+### Install Dependancies
+```
+sudo apt-get install libzmq-dev build-essential git cmake python3 python3-dev python3-virtualenv libv4l-dev
+```
 
-## Optional - Jetson TX_ ##
-* instead of a Pi3, use an Nvidia Jetson TX1 or TX2
+if on a raspberry pi
+```
+cd ~
+git clone https://github.com/WiringPi/WiringPi
+cd WiringPi
+./build
+```
 
-## Optional - setup RPLIDAR ###
+build czmq
+```
+cd ~
+git clone https://github.com/zeromq/czmq.git
+cd czmq
+mkdir build && cd build
+cmake .. && make
+sudo make install
+```
+
+if using raspicam camera
+```
+cd ~
+git clone https://github.com/cedricve/raspicam
+```
+
+when building raspicam, I had to make this hack to get better framerate.
+edit raspicam/src/private/private_impl.cpp
+* change: State.framerate            = 10;
+* to:     State.framerate            = 60;
+
+```
+cd raspicam
+mkdir build
+cd build
+cmake ..
+```
+
+Some distributions do not have /usr/local/lib in the default LD_LIBRARY_PATH. To
+fix this, you need to edit /etc/ld.so.conf and add in a single line:
+
+  /usr/local/lib
+
+then run the ldconfig command.
+
+  sudo ldconfig
+
+
+### Optional - Setup RPLIDAR
 * download sdk and unzip to rplidar dir
 * cd rplidar/sdk && make
 * sudo cp ./output/Linux/Release/*.a /usr/local/lib/
 * sudo mkdir /usr/local/include/rplidar
 * sudo cp ./sdk/include/* /usr/local/include/rplidar
 
-## Optional - setup BreezySLAM
+### Optional - Setup BreezySLAM
 * git clone https://github.com/simondlevy/BreezySLAM.git
 * cd BreezySlam/cpp && make
 * sudo make install
 * sudo mkdir /usr/local/include/BreezySLAM
 * sudo cp *.hpp /usr/local/include/BreezySLAM/
+ 
+### Clone Repo
+```
+git clone https://github.com/tawnkramer/shark
+cd shark
+```
+
+### Setup virtualenv
+
+```
+sudo apt-get install python3-virtualenv
+virtualenv -p python3 env
+source env/bin/activate
+```
+
+### Install python packages
+```
+wget https://github.com/samjabrahams/tensorflow-on-raspberry-pi/releases/download/v0.12.1/tensorflow-0.12.1-cp34-cp34m-linux_armv7l.whl
+pip3 install tensorflow-0.12.1-cp34-cp34m-linux_armv7l.whl
+pip3 install -r requirements.txt
+```
+
+### Setup Configs
+```
+cp config_example.json config.json  
+```
+edit config.json to match your setup
+
+### Setup Status LED ###
+* connect an led to any open pwm on servo hat
+* modify config.json to match pwm channel choice
+
+### Build Shark
+
+```
+mkdir build
+cd build
+cmake ..
+make
+cd ..
+```
+
+### Run Shark
+```
+python shark.py
+```
+
+### Run Web UI
+optionally
+```
+cd web
+python webapp.py
+```

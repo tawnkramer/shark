@@ -1,0 +1,9 @@
+numpy
+keras==1.2.1
+tensorflow==0.12.1
+cherrypy
+pillow
+awscli
+matplotlib
+h5py
+zmq

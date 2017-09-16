@@ -431,6 +431,7 @@ void* ProcessJoyStick(void* args)
 
     //PS3 left analog left and right is axis 0
     int axisSteer = conf->GetInt("js_axis_steer", 0);
+    float axisSteerMult = conf->GetInt("js_axis_steer_mult", 1.0);
 
     //PS3 right analog up and down is axis 3
     int axisThrottle = conf->GetInt("js_axis_throttle", 3);
@@ -470,7 +471,7 @@ void* ProcessJoyStick(void* args)
                     if(bVerbose)
                         printf("steer: %d\n", event.value);
     
-                    record.steer = event.value;
+                    record.steer = event.value * axisSteerMult;
                     record.tick = clock();
                     g_AxisInput.Write(record);
                 }
