@@ -1,1 +1,1 @@
-mv ../loss.png ./img/
+cd .. && mkdir log

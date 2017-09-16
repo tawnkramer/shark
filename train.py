@@ -79,14 +79,13 @@ def generator(samples, batch_size=32, perc_to_augment=0.5, transposeImages=False
     negated.
     '''
     num_samples = len(samples)
-    do_augment = False
+    do_augment = True
     if do_augment:
         shadows = augment.load_shadow_images('./shadows/*.png')    
     
-    batch_size = int(batch_size / 2)
     while 1: # Loop forever so the generator never terminates
         samples = shuffle(samples)
-        #divide batch_size in half, because we double each output by flipping image.
+
         for offset in range(0, num_samples, batch_size):
             batch_samples = samples[offset:offset+batch_size]
             print(".", end="")
@@ -120,13 +119,9 @@ def generator(samples, batch_size=32, perc_to_augment=0.5, transposeImages=False
 
                     center_angle = steering
                     images.append(image)
-                    controls.append([center_angle, throttle])
+                    #controls.append([center_angle, throttle])
+                    controls.append([center_angle])
 
-                    #flip image and steering.
-                    image = np.fliplr(image)
-                    center_angle = -center_angle
-                    images.append(image)
-                    controls.append([center_angle, throttle])
                 except:
                     yield [], []
 
@@ -185,14 +180,13 @@ def make_generators(inputs, limit=None, batch_size=32, aug_perc=0.0, transposeIm
     train_generator = generator(train_samples, batch_size=batch_size, perc_to_augment=aug_perc, transposeImages=transposeImages)
     validation_generator = generator(validation_samples, batch_size=batch_size, perc_to_augment=0.0, transposeImages=transposeImages)
     
-    #double each because we will flip image in generator
-    n_train = len(train_samples) * 2
-    n_val = len(validation_samples) * 2
+    n_train = len(train_samples)
+    n_val = len(validation_samples)
     
     return train_generator, validation_generator, n_train, n_val
 
 
-def go(model_name, epochs=50, inputs='./log/*.jpg', limit=None, aug_mult=1, aug_perc=0.0):
+def go(model_name, epochs=50, batch_size=128, inputs='./log/*.jpg', limit=None, aug_mult=1, aug_perc=0.0, resume=False):
 
     print('working on model', model_name)
 
@@ -208,14 +202,17 @@ def go(model_name, epochs=50, inputs='./log/*.jpg', limit=None, aug_mult=1, aug_
     else:
         model = models.get_nvidia_model()
 
+    if resume:
+        print("resuming training of", model_name)
+        model = keras.models.load_model(model_name)
+        model.ch_order = 'channel_last'
+
     transposeImages = (model.ch_order == 'channel_first')
     
     callbacks = [
-        keras.callbacks.EarlyStopping(monitor='val_loss', patience=conf.training_patience, verbose=0),
+        #keras.callbacks.EarlyStopping(monitor='val_loss', patience=conf.training_patience, verbose=0),
         keras.callbacks.ModelCheckpoint(model_name, monitor='val_loss', save_best_only=True, verbose=0),
     ]
-    
-    batch_size = conf.training_batch_size
 
 
     #Train on session images
@@ -246,12 +243,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='train script')
     parser.add_argument('model', type=str, help='model name')
     parser.add_argument('--epochs', type=int, default=conf.training_default_epochs, help='number of epochs')
+    parser.add_argument('--batch_size', type=int, default=conf.training_batch_size, help='number samples per gradient update')
     parser.add_argument('--inputs', default='./log/*.jpg', help='input mask to gather images')
     parser.add_argument('--limit', type=int, default=None, help='max number of images to train with')
     parser.add_argument('--aug_mult', type=int, default=conf.training_default_aug_mult, help='how many more images to augment')
     parser.add_argument('--aug_perc', type=float, default=conf.training_default_aug_percent, help='what percentage of images to augment 0 - 1')
+    parser.add_argument('--resume', action='store_true', help="load previous model and weights before resuming training")
     args = parser.parse_args()
     
-    go(args.model, epochs=args.epochs, limit=args.limit, inputs=args.inputs, aug_mult=args.aug_mult, aug_perc=args.aug_perc)
+    go(args.model, epochs=args.epochs, batch_size=args.batch_size, limit=args.limit, inputs=args.inputs, aug_mult=args.aug_mult, aug_perc=args.aug_perc, resume=args.resume)
 
 #python train.py mymodel_aug_90_x4_e200 --epochs=200 --aug_mult=4 --aug_perc=0.9

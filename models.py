@@ -9,6 +9,7 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.layers import Dense, Lambda, ELU
 from keras.layers import Activation, Dropout, Flatten, Dense
 from keras.layers import Cropping2D
+from keras.layers.normalization import BatchNormalization
 
 import conf
 
@@ -54,7 +55,7 @@ def get_nvidia_model():
     model.add(ELU())
     model.add(Dense(128))
     model.add(ELU())
-    model.add(Dense(2))
+    model.add(Dense(1))
 
     model.compile(optimizer="adam", loss="mse")
     return model
@@ -82,14 +83,19 @@ def get_nvidia_model2():
     #model.add(Cropping2D(cropping=((20,20), (0,0))))
 
     model.add(Convolution2D(64, 5, 5, subsample=(2, 2), border_mode="same"))
+    model.add(BatchNormalization())
     model.add(Activation('relu'))
     model.add(Convolution2D(36, 5, 5, subsample=(2, 2), border_mode="same"))
+    model.add(BatchNormalization())
     model.add(Activation('relu'))
     model.add(Convolution2D(48, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(BatchNormalization())
     model.add(Activation('relu'))
     model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+    model.add(BatchNormalization())
     model.add(Activation('relu'))
     model.add(Convolution2D(64, 3, 3, subsample=(1, 1), border_mode="same"))
+    model.add(BatchNormalization())
     model.add(Flatten())
     model.add(Dropout(.2))
     model.add(Activation('relu'))
@@ -102,7 +108,7 @@ def get_nvidia_model2():
     model.add(Activation('tanh'))
 
     #two floats for steering and throttle commands
-    model.add(Dense(2))
+    model.add(Dense(1))
 
     #choose a loss function and optimizer
     model.compile(loss='mse', optimizer='adam')
@@ -127,7 +133,7 @@ def get_simple_model():
 
     
     model.add(MaxPooling2D((2, 2)))    
-    model.add(Convolution2D(9, 5, 5, subsample=(4, 4), border_mode="same"))
+    model.add(Convolution2D(9, 5, 5, subsample=(1, 1), border_mode="same"))
     model.add(Activation('relu'))
     model.add(Dropout(.5))
     model.add(MaxPooling2D((2, 2)))
@@ -144,7 +150,7 @@ def get_simple_model():
     model.add(Activation('tanh'))
 
     #two floats for steering and throttle commands
-    model.add(Dense(2))
+    model.add(Dense(1))
 
     #choose a loss function and optimizer
     model.compile(loss='mse', optimizer='adam')
