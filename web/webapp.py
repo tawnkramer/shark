@@ -42,13 +42,15 @@ def img_to_binary(img):
 class Proc():
     def __init__(self, command_plus_args, shell=False):
         print('launching', command_plus_args)
-        self.proc = Popen(command_plus_args, shell=shell, stdout=PIPE)
+        self.proc = Popen(command_plus_args, shell=shell, stdout=PIPE, stderr=PIPE)
 
     def get_output(self, output_arr):
         line = self.proc.stdout.readline()
+        print(line)
         output_arr.append(line)
         while self.proc.poll() is None:
             line = self.proc.stdout.readline()
+            print(line)
             output_arr.append(line)
 
     def poll(self):
@@ -56,9 +58,11 @@ class Proc():
         returns a tuple of string line output as long as process is running
         and bool, True when complete
         '''
-        line = self.proc.stdout.readline()
+        #line = self.proc.stdout.readline()
+        line = self.proc.stdout.read(64)
+        #print(line)
         #i'd like to read stderr, but it kills the feedback from stdout during training, ARGGG!!!
-        #line = line + self.proc.stderr.readline()
+        #line = line + self.proc.stderr.read(64)
         complete = self.proc.poll() is not None
         return line, complete
 
@@ -326,7 +330,7 @@ class WebSite(object):
                 with BytesIO() as output:
                     img.save(output, "JPEG")
                     jpg_img = output.getvalue()
-                cont_len = "Content-length: %s\r\n\r\n" % len(jpg_img)
+                cont_len = "Content-length: %d\r\n\r\n" % len(jpg_img)
                 yield(boundary)
                 yield(b"Content-type: image/jpeg\r\n")
                 yield( str.encode(cont_len) )
@@ -371,7 +375,7 @@ class WebSite(object):
                     jpg_img = output.getvalue()
                 yield(boundary)
                 yield(b"Content-type: image/jpeg\r\n")
-                yield(("Content-length: %s\r\n\r\n" % len(jpg_img)).encode() )
+                yield(("Content-length: %d\r\n\r\n" % len(jpg_img)).encode() )
                 yield(jpg_img)
                 
         return content()
@@ -528,7 +532,7 @@ class WebSite(object):
                     if img is not None:
                         yield(boundary)
                         yield(b"Content-type: image/jpeg\r\n")
-                        yield(b"Content-length: %s\r\n\r\n" % len(img))
+                        yield(b"Content-length: %d\r\n\r\n" % len(img))
                         yield(img)
                     time.sleep(interval)
         return content()
@@ -923,10 +927,14 @@ class WebSite(object):
 
                 #kick off training
                 command = "cd ..;python train.py ./models/%s --epochs %d;" % ( model_name, self.train_epochs)
+                if os.name == 'nt':
+                    command = "cd ..\npython train.py ./models/%s --epochs %d" % ( model_name, self.train_epochs)
                 commands.append(command)
 
                 #mv training graph
                 command = "mv ../loss.png ./img/"
+                if os.name == 'nt':
+                    command = "copy ..\\loss.png .\\img\\"
                 commands.append(command)
                 
             else:
@@ -946,6 +954,8 @@ class WebSite(object):
             yield('<pre>')
             for com in commands:                
                 cmd_filename = "../scripts/command"
+                if os.name == 'nt':
+                    cmd_filename = "..\scripts\command.bat"
                 command_file = open(cmd_filename, "wt")
                 command_file.write(com)
                 command_file.close()
@@ -956,8 +966,10 @@ class WebSite(object):
                 while not complete:                    
                     output, complete = p.poll()
                     #get just the last 100 characters of the update lines.
-                    if output.find('val_loss') != -1:
-                        output = output[-100:]
+                    output = output.decode("utf-8")
+                    #print('output', output, type(output), 'complete', complete)
+                    if '' in output:
+                        output = output.replace('', '')                        
                     yield (output)
                 yield('\n\n')
             yield('</pre>')
