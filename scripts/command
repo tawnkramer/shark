@@ -1,1 +1,1 @@
-ssh -oStrictHostKeyChecking=no ubuntu@34.229.232.58 'cd shark; rm -rf log; tar -xf log.tar;'
+mv ../loss.png ./img/

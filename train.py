@@ -60,7 +60,7 @@ def shuffle(samples):
     return ret_arr
 
 def parse_img_filepath(filepath):
-    f = filepath.split('/')[-1]
+    f = os.path.basename(filepath)
     f = f.split('.')[0]
     f = f.split('_')
 
@@ -270,10 +270,10 @@ def go(model_name,
     train_generator, validation_generator, n_train, n_val = make_generators(inputs, limit=limit, batch_size=batch_size, aug_perc=aug_perc, transposeImages=transposeImages)
 
     history = model.fit_generator(train_generator, 
-        samples_per_epoch = n_train,
+        steps_per_epoch = n_train // batch_size,
         validation_data = validation_generator,
-        nb_val_samples = n_val,
-        nb_epoch=epochs,
+        validation_steps = n_val // batch_size,
+        epochs=epochs,
         verbose=1,
         callbacks=callbacks)
     
@@ -287,6 +287,8 @@ def go(model_name,
             plt.xlabel('epoch')
             plt.legend(['train', 'test'], loc='upper left')
             plt.savefig('loss.png')
+        else:
+            print("not saving loss graph because matplotlib not set up.")
     except:
         print("problems with loss graph")
 

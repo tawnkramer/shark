@@ -1,0 +1,1 @@
+nohup python sync.py --dest --path=./log &
