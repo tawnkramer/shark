@@ -190,13 +190,14 @@ def make_generators(inputs, limit=None, batch_size=32, aug_perc=0.0, transposeIm
     #get the image/steering pairs from the csv files
     lines = get_files(inputs)
     print("found %d files" % len(lines))
-    test_open_images(lines)
-    print("clean left %d files" % len(lines))
-
+    
     if limit is not None:
         lines = lines[:limit]
         print("limiting to %d files" % len(lines))
     
+    test_open_images(lines)
+    print("clean left %d files" % len(lines))
+
     train_samples, validation_samples = train_test_split(lines, test_perc=0.2)
 
     print("num train/val", len(train_samples), len(validation_samples))
