@@ -151,9 +151,12 @@
 //////////////////////////////////////////
 // status led settings
 
-//gpio pin we use for status led 
-"status_pin" : 23,
+//pwm pin we use for status led 
+"status_pin_pwm_ch" : 8,
 
+//high low values for on off
+"status_pin_hi" : 1000,
+"status_pin_lo" : 0,
 
 //////////////////////////////////////////
 // predict engine settings

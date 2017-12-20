@@ -259,7 +259,7 @@ def go(model_name,
     transposeImages = do_transpose_inputs(model)
     
     callbacks = [
-        #keras.callbacks.EarlyStopping(monitor='val_loss', patience=conf.training_patience, verbose=0),
+        keras.callbacks.EarlyStopping(monitor='val_loss', patience=conf.training_patience, verbose=0),
         keras.callbacks.ModelCheckpoint(model_name, monitor='val_loss', save_best_only=True, verbose=0),
     ]
     

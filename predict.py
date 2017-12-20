@@ -149,8 +149,8 @@ def go(model_path, pred_address, pred_control_address):
                         cont_socket.send_string("model load failed : %s", model_path)
                 if jsonObj['command'] == 'ping':
                     cont_socket.send_string("predict is alive.")
-            except:
-                cont_socket.send_string("failure on message")
+            except Exception as e:
+                cont_socket.send_string("failed:" + str(e))
 
 def pred_image(model_path, image_path):
     if model_path.find('.json') != -1:

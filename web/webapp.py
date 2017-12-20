@@ -702,10 +702,10 @@ class WebSite(object):
                 socket = context.socket(zmq.REQ)
                 connect_str = "tcp://%s:%s" % (self.pred_control_address[0], self.pred_control_address[1])
                 socket.connect(connect_str)
-                socket.send_string(command.encode('utf-8'))
+                socket.send_string(command)
                 reply = socket.recv()
                 #led_status.blink(conf.status_pin, n_times=10, delay=0.2)
-                res.append(reply)
+                res.append(reply.decode("utf-8"))
             except:
                 tb = traceback.format_exc()
                 res.append(tb)
@@ -717,6 +717,7 @@ class WebSite(object):
             yield self.easy_page("".join(res))
 
         return content()
+
 
     push_model.exposed = True
     push_model._cp_config = {'response.stream': True}
