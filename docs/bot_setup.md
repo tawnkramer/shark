@@ -59,7 +59,7 @@ Also RPLidar support:
 
 ### Install Dependancies
 ```
-sudo apt-get install libzmq-dev build-essential git cmake python3 python3-dev python3-virtualenv libv4l-dev
+sudo apt-get install build-essential git cmake libczmq-dev python3 python3-dev python3-virtualenv libv4l-dev
 ```
 
 if on a raspberry pi
@@ -68,16 +68,6 @@ cd ~
 git clone https://github.com/WiringPi/WiringPi
 cd WiringPi
 ./build
-```
-
-build czmq
-```
-cd ~
-git clone https://github.com/zeromq/czmq.git
-cd czmq
-mkdir build && cd build
-cmake .. && make
-sudo make install
 ```
 
 if using raspicam camera
@@ -98,10 +88,12 @@ cd build
 cmake ..
 ```
 
-Some distributions do not have /usr/local/lib in the default LD_LIBRARY_PATH. To
-fix this, you need to edit /etc/ld.so.conf and add in a single line:
+Add /usr/local/lib in the default LD_LIBRARY_PATH. To
+fix this, you need to edit ~/.profile:
 
-  /usr/local/lib
+LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib"
+export LD_LIBRARY_PATH
+  
 
 then run the ldconfig command.
 
